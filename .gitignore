@@ -1,0 +1,5 @@
+bot.log
+temp/
+*.mp3
+.porco_credentials
+.DS_Store
