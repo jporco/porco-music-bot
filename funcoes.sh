@@ -1,6 +1,40 @@
 #!/bin/bash
 
-# ... (mantendo limpar, volume e fila como estão)
+porco-help() {
+    echo -e "\e[1;35m"
+    echo "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣀⣤⣤⣶⣶⣶⣶⣦⣤⣄⣀⠀⠀⠀⠀⠀⠀⠀⠀⠀"
+    echo "⠀⠀⢀⡶⢻⡦⢀⣠⣶⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡟⢀⣴⣾⡿⠀⣠⠀⠀"
+    echo "⠀⠠⣬⣷⣾⣡⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣧⣌⣋⣉⣄⠘⠋⠀⠀"
+    echo "⠀⠀⠀⠀⢹⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡿⣿⣿⡄⠀⠀⠀"
+    echo "⠀⠀⠀⠀⢸⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷⣾⣿⣷⣶⡄⠀"
+    echo "⠀⠀⠀⠀⢸⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡇⠀"
+    echo "⠀⠀⠀⠀⠸⣿⣿⣿⠛⠛⠛⠛⠛⠛⠛⠛⠻⠿⣿⣿⡿⠛⠛⠛⠋⠉⠉⠀⠀⠀"
+    echo "⠀⠀⠀⠀⠀⢻⣿⣿⠀⠀⢸⣿⡇⠀⠀⠀⠀⠀⢻⣿⠃⠸⣿⡇⠀⠀⠀⠀⠀⠀"
+    echo "⠀⠀⠀⠀⠀⠈⠿⠇⠀⠀⠀⠻⠇⠀⠀⠀⠀⠀⠈⠿⠀⠀⠻⠿⠀⠀⠀⠀⠀⠀"
+    echo -e "\e[0m"
+    echo -e "--- \e[1;33mPORCO MUSIC BOT\e[0m ---"
+    echo -e "\e[1;32mplay [busca]\e[0m  -> Toca 10 músicas"
+    echo -e "\e[1;32mfila\e[0m          -> Ver lista e atual (->)"
+    echo -e "\e[1;32mtocando\e[0m       -> Ver progresso [####]"
+    echo -e "\e[1;32mproxima\e[0m       -> Pula a música atual"
+    echo -e "\e[1;32mvolume [0-100]\e[0m-> Ajustar som"
+    echo -e "\e[1;32mlimpar\e[0m        -> Reset total"
+    echo -e "\e[1;36mhistorico\e[0m     -> Ver buscas recentes"
+    echo -e "\e[1;34mupdate-git\e[0m    -> Sobe para o GitHub"
+    echo -e "\e[1;34mvoltar-git\e[0m    -> Restaura versão"
+    echo -e "-----------------------\n"
+}
+
+historico() {
+    echo -e "\n📜 HISTÓRICO DE BUSCAS (Últimas 20):"
+    if [ -f ~/porco-bot/historico.txt ]; then
+        tail -n 20 ~/porco-bot/historico.txt
+    else
+        echo "O histórico está vazio ou foi limpo recentemente."
+    fi
+    echo ""
+}
+
 limpar() {
     > ~/porco-bot/queue.txt
     pkill -9 -f engine.py; pkill -9 mpv; rm -f ~/porco-bot/temp/*.mp3
@@ -31,53 +65,29 @@ fila() {
 tocando() {
     local S="/tmp/porco.sock"
     [ ! -S "$S" ] && { echo "⚠️ Off"; return; }
-
-    # Puxa os dados brutos e filtra com mais rigor
     local T=$(echo '{"command":["get_property","media-title"]}' | socat - "$S" 2>/dev/null | grep -oP '"data":"\K[^"]+')
     local C_RAW=$(echo '{"command":["get_property","time-pos"]}' | socat - "$S" 2>/dev/null | grep -oP '"data":\K[0-9.]+')
     local TT_RAW=$(echo '{"command":["get_property","duration"]}' | socat - "$S" 2>/dev/null | grep -oP '"data":\K[0-9.]+')
-
-    [ -z "$T" ] && { echo "⏳ Carregando..."; return; }
-
-    # Converte para inteiro (remove decimais)
     local C=$(echo "$C_RAW" | cut -d. -f1)
     local TT=$(echo "$TT_RAW" | cut -d. -f1)
-
-    # Se MPV falhar no tempo total, pega do nome [MM:SS]
-    if [[ -z "$TT" || "$TT" == "0" ]]; then
-        local TM=$(echo "$T" | grep -oP '^\[\K[0-9:]+')
-        if [ ! -z "$TM" ]; then
-            local M=$(echo $TM | cut -d: -f1); local S_SEC=$(echo $TM | cut -d: -f2)
-            TT=$((10#$M * 60 + 10#$S_SEC))
-        fi
-    fi
-
-    echo -e "\n🎶 $T"
-
+    echo -e "\n🎶 ${T:-Carregando...}"
     if [[ ! -z "$C" && ! -z "$TT" && "$TT" != "0" ]]; then
-        local P=$((C * 100 / TT))
-        [ $P -gt 100 ] && P=100
-        local TAM=20
-        local POS=$((P * TAM / 100))
-        local B=$(printf "%${POS}s" | tr ' ' '#')
-        local DT=$(printf "%$((TAM-POS))s" | tr ' ' '-')
-        
+        local P=$((C * 100 / TT)); [ $P -gt 100 ] && P=100
+        local B=$(printf "%$((P/5))s" | tr ' ' '#'); local DT=$(printf "%$((20-(P/5)))s" | tr ' ' '-')
         printf "[%s%s] %02d:%02d / %02d:%02d (%d%%)\n\n" "$B" "$DT" $((C/60)) $((C%60)) $((TT/60)) $((TT%60)) "$P"
-    else
-        echo -e "[--------------------] 00:00 / --:-- (Processando...)\n"
     fi
-}
-
-porco-help() {
-    echo -e "\n--- COMANDOS ---\nplay, fila, tocando, volume, limpar\n----------------\n"
 }
 
 proxima() {
-    local S="/tmp/porco.sock"
-    if [ -S "$S" ]; then
-        echo '{"command": ["quit"]}' | socat - "$S" >/dev/null 2>&1
-        echo "⏭️ Pulando para a próxima..."
-    else
-        echo "⚠️ Nada tocando para pular."
-    fi
+    echo '{"command": ["quit"]}' | socat - "/tmp/porco.sock" >/dev/null 2>&1
+    echo "⏭️ Pulando..."
+}
+
+update-git() {
+    [ -z "$1" ] && { echo "⚠️ Use: update-git 'msg'"; return; }
+    cd ~/porco-music-bot
+    cp ~/porco-bot/{engine.py,play.py,funcoes.sh} .
+    git add . && git commit -m "$1" && git push origin main
+    echo "🚀 GitHub Atualizado!"
+    cd - > /dev/null
 }
