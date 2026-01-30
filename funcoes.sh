@@ -1,6 +1,118 @@
 #!/bin/bash
 
+# --- PROTEÇÃO CRÍTICA ---
+# Desativa qualquer comando 'play' do sistema antes de criar a nossa função
+if alias play >/dev/null 2>&1; then
+    unalias play
+fi
+
 # --- AJUDA ---
+
+# --- MOTOR ---
+acordar-porco() {
+    echo "🐷 Acordando o porco..."
+    pkill -9 -f engine.py >/dev/null 2>&1
+    pkill -9 mpv >/dev/null 2>&1
+    rm -f /tmp/porco.sock
+    python3 ~/porco-bot/engine.py > ~/porco-bot/bot.log 2>&1 &
+    sleep 1
+    echo "✅ O porco está de pé!"
+}
+
+porco-log() {
+    echo -e "\e[1;33m👀 Monitorando o Porco... (Ctrl+C sair)\e[0m"
+    [ -f ~/porco-bot/bot.log ] && tail -f ~/porco-bot/bot.log || echo "⚠️ Log vazio."
+}
+
+# --- FUNÇÕES DE COMANDO ---
+# Usamos 'function play' para garantir compatibilidade extra
+function play {
+    python3 ~/porco-bot/play.py "$*"
+}
+
+function proxima {
+    echo '{"command": ["quit"]}' | socat - "/tmp/porco.sock" >/dev/null 2>&1
+    echo "⏭️ Pulando..."
+}
+
+function limpar {
+    > ~/porco-bot/queue.txt
+    acordar-porco
+    echo "🧹 Fila limpa!"
+}
+
+function volume {
+    local S="/tmp/porco.sock"
+    [ ! -S "$S" ] && { echo "⚠️ Off"; return; }
+    case "$1" in
+        "") VOL=$(echo '{"command":["get_property","volume"]}' | socat - "$S" 2>/dev/null | grep -oP '"data":\K[0-9.]+' | cut -d. -f1); echo "🔈 Vol: ${VOL:-0}%" ;;
+        "+") echo '{"command":["add","volume",10]}' | socat - "$S" >/dev/null; echo "🔊 +10%" ;;
+        "-") echo '{"command":["add","volume",-10]}' | socat - "$S" >/dev/null; echo "🔉 -10%" ;;
+        *) echo "{\"command\":[\"set_property\",\"volume\",$1]}" | socat - "$S" >/dev/null; echo "📢 Vol: $1%" ;;
+    esac
+}
+
+function fila {
+    local S="/tmp/porco.sock"
+    echo -e "\n📋 FILA"
+    local A=$(echo '{"command":["get_property","media-title"]}' | socat - "$S" 2>/dev/null | grep -oP '"data":"\K[^"]+')
+    [ ! -z "$A" ] && echo -e " -> $A (TOCANDO)\n ---"
+    if [ ! -s ~/porco-bot/queue.txt ]; then [ -z "$A" ] && echo " Vazia."; else cat -n ~/porco-bot/queue.txt; fi
+}
+
+function tocando {
+    local S="/tmp/porco.sock"
+    [ ! -S "$S" ] && { echo "⚠️ Off"; return; }
+    local T=$(echo '{"command":["get_property","media-title"]}' | socat - "$S" 2>/dev/null | grep -oP '"data":"\K[^"]+')
+    local C_RAW=$(echo '{"command":["get_property","time-pos"]}' | socat - "$S" 2>/dev/null | grep -oP '"data":\K[0-9.]+')
+    local TT_RAW=$(echo '{"command":["get_property","duration"]}' | socat - "$S" 2>/dev/null | grep -oP '"data":\K[0-9.]+')
+    local C=$(echo "$C_RAW" | cut -d. -f1); local TT=$(echo "$TT_RAW" | cut -d. -f1)
+    echo -e "\n🎶 ${T:-Carregando...}"
+    if [[ ! -z "$C" && ! -z "$TT" && "$TT" != "0" ]]; then
+        local P=$((C * 100 / TT)); [ $P -gt 100 ] && P=100
+        local B=$(printf "%$((P/5))s" | tr ' ' '#'); local DT=$(printf "%$((20-(P/5)))s" | tr ' ' '-')
+        printf "[%s%s] %02d:%02d / %02d:%02d (%d%%)\n\n" "$B" "$DT" $((C/60)) $((C%60)) $((TT/60)) $((TT%60)) "$P"
+    fi
+}
+
+function historico {
+    echo -e "\n📜 HISTÓRICO:"
+    [ -f ~/porco-bot/historico.txt ] && tail -n 20 ~/porco-bot/historico.txt || echo "Vazio."
+}
+
+# --- GIT ---
+function update-git {
+    local MSG="$*"
+    [ -z "$MSG" ] && MSG="Update automático"
+    cd ~/porco-music-bot
+    cp ~/porco-bot/{engine.py,play.py,funcoes.sh} . 2>/dev/null
+    git add .
+    git commit -m "$MSG"
+    git pull origin main --rebase
+    git push origin main
+    cd - > /dev/null
+}
+
+function update-interno {
+    local MSG="$*"
+    [ -z "$MSG" ] && MSG="Update automático interno"
+    cd ~/porco-music-bot
+    cp ~/porco-bot/{engine.py,play.py,funcoes.sh} . 2>/dev/null
+    git add .
+    git commit -m "$MSG"
+    git pull interno main --rebase
+    git push interno main -f
+    cd - > /dev/null
+}
+
+
+function play-link {
+    if [ -z "$1" ]; then
+        echo "⚠️ Uso: play-link [link do youtube]"
+        return
+    fi
+    python3 ~/porco-bot/play.py --mix "$1"
+}
 porco-help() {
     echo -e "\e[1;35m"
     echo "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣀⣤⣤⣶⣶⣶⣶⣦⣤⣄⣀⠀⠀⠀⠀⠀⠀⠀⠀⠀"
@@ -16,109 +128,15 @@ porco-help() {
     echo -e "--- \e[1;33mPORCO MUSIC BOT\e[0m ---"
     echo -e "\e[1;33macordar-porco\e[0m -> Inicia/Reinicia o bot"
     echo -e "\e[1;32mplay [busca]\e[0m  -> Toca 10 músicas"
-    echo -e "\e[1;32mfila\e[0m          -> Ver lista e atual (->)"
-    echo -e "\e[1;32mtocando\e[0m       -> Ver progresso [####]"
-    echo -e "\e[1;32mproxima\e[0m       -> Pula a música atual"
+    echo -e "\e[1;32mplay-link [link]\e[0m-> Gera Mix (10 sons) de um link"
+    echo -e "\e[1;32mfila\e[0m          -> Ver lista"
+    echo -e "\e[1;32mtocando\e[0m       -> Ver progresso"
+    echo -e "\e[1;32mproxima\e[0m       -> Pular música"
     echo -e "\e[1;32mvolume [0-100]\e[0m-> Ajustar som"
     echo -e "\e[1;35mporco-log\e[0m     -> Ver log ao vivo"
-    echo -e "\e[1;36mhistorico\e[0m     -> Ver buscas recentes"
-    echo -e "\e[1;32mlimpar\e[0m        -> Reset total da fila"
-    echo -e "\e[1;34mupdate-git\e[0m    -> Sincronizar GitHub"
-    echo -e "\e[1;31mupdate-interno\e[0m-> Sincronizar Gitea"
+    echo -e "\e[1;36mhistorico\e[0m     -> Ver buscas"
+    echo -e "\e[1;32mlimpar\e[0m        -> Reset total"
+    echo -e "\e[1;34mupdate-git\e[0m    -> GitHub"
+    echo -e "\e[1;31mupdate-interno\e[0m-> Gitea"
     echo -e "-----------------------\n"
-}
-
-# --- MOTOR E LOGS ---
-acordar-porco() {
-    echo "🐷 Acordando o porco..."
-    pkill -9 -f engine.py >/dev/null 2>&1
-    pkill -9 mpv >/dev/null 2>&1
-    rm -f /tmp/porco.sock
-    python3 ~/porco-bot/engine.py > ~/porco-bot/bot.log 2>&1 &
-    sleep 1
-    echo "✅ O porco está de pé!"
-}
-
-porco-log() {
-    echo -e "\e[1;33m👀 Monitorando o Porco... (Pressione Ctrl+C para sair)\e[0m"
-    [ -f ~/porco-bot/bot.log ] && tail -f ~/porco-bot/bot.log || echo "⚠️ Log vazio."
-}
-
-# --- CONTROLE DE REPRODUÇÃO ---
-play() { python3 ~/porco-bot/play.py "$*"; }
-
-proxima() {
-    echo '{"command": ["quit"]}' | socat - "/tmp/porco.sock" >/dev/null 2>&1
-    echo "⏭️ Pulando..."
-}
-
-limpar() {
-    > ~/porco-bot/queue.txt
-    acordar-porco
-    echo "🧹 Fila limpa e bot resetado!"
-}
-
-volume() {
-    local S="/tmp/porco.sock"
-    [ ! -S "$S" ] && { echo "⚠️ Off"; return; }
-    case "$1" in
-        "") VOL=$(echo '{"command":["get_property","volume"]}' | socat - "$S" 2>/dev/null | grep -oP '"data":\K[0-9.]+' | cut -d. -f1)
-           echo "🔈 Vol: ${VOL:-0}%" ;;
-        "+") echo '{"command":["add","volume",10]}' | socat - "$S" >/dev/null; echo "🔊 +10%" ;;
-        "-") echo '{"command":["add","volume",-10]}' | socat - "$S" >/dev/null; echo "🔉 -10%" ;;
-        *) echo "{\"command\":[\"set_property\",\"volume\",$1]}" | socat - "$S" >/dev/null; echo "📢 Vol: $1%" ;;
-    esac
-}
-
-fila() {
-    local S="/tmp/porco.sock"
-    echo -e "\n📋 FILA"
-    local A=$(echo '{"command":["get_property","media-title"]}' | socat - "$S" 2>/dev/null | grep -oP '"data":"\K[^"]+')
-    [ ! -z "$A" ] && echo -e " -> $A (TOCANDO)\n ---"
-    if [ ! -s ~/porco-bot/queue.txt ]; then [ -z "$A" ] && echo " Vazia."; else cat -n ~/porco-bot/queue.txt; fi
-}
-
-tocando() {
-    local S="/tmp/porco.sock"
-    [ ! -S "$S" ] && { echo "⚠️ Off"; return; }
-    local T=$(echo '{"command":["get_property","media-title"]}' | socat - "$S" 2>/dev/null | grep -oP '"data":"\K[^"]+')
-    local C_RAW=$(echo '{"command":["get_property","time-pos"]}' | socat - "$S" 2>/dev/null | grep -oP '"data":\K[0-9.]+')
-    local TT_RAW=$(echo '{"command":["get_property","duration"]}' | socat - "$S" 2>/dev/null | grep -oP '"data":\K[0-9.]+')
-    local C=$(echo "$C_RAW" | cut -d. -f1); local TT=$(echo "$TT_RAW" | cut -d. -f1)
-    echo -e "\n🎶 ${T:-Carregando...}"
-    if [[ ! -z "$C" && ! -z "$TT" && "$TT" != "0" ]]; then
-        local P=$((C * 100 / TT)); [ $P -gt 100 ] && P=100
-        local B=$(printf "%$((P/5))s" | tr ' ' '#'); local DT=$(printf "%$((20-(P/5)))s" | tr ' ' '-')
-        printf "[%s%s] %02d:%02d / %02d:%02d (%d%%)\n\n" "$B" "$DT" $((C/60)) $((C%60)) $((TT/60)) $((TT%60)) "$P"
-    fi
-}
-
-historico() {
-    echo -e "\n📜 HISTÓRICO DE BUSCAS:"
-    [ -f ~/porco-bot/historico.txt ] && tail -n 20 ~/porco-bot/historico.txt || echo "Vazio."
-}
-
-# --- SINCRONIZAÇÃO (GIT) ---
-update-git() {
-    local MSG="$*"
-    [ -z "$MSG" ] && MSG="Update automático"
-    cd ~/porco-music-bot
-    cp ~/porco-bot/{engine.py,play.py,funcoes.sh} . 2>/dev/null
-    git add .
-    git commit -m "$MSG"
-    git pull origin main --rebase
-    git push origin main
-    cd - > /dev/null
-}
-
-update-interno() {
-    local MSG="$*"
-    [ -z "$MSG" ] && MSG="Update automático interno"
-    cd ~/porco-music-bot
-    cp ~/porco-bot/{engine.py,play.py,funcoes.sh} . 2>/dev/null
-    git add .
-    git commit -m "$MSG"
-    git pull interno main --rebase
-    git push interno main -f
-    cd - > /dev/null
 }
