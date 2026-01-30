@@ -12,7 +12,6 @@ Este projeto é um bot de música leve, focado em performance e simplicidade, fe
 * 🛡️ **Filtro Anti-Show**: Ignora automaticamente vídeos com mais de 7 minutos.
 * 📊 **Progresso Real-time**: Barra de progresso visual estilizada no terminal.
 * 📜 **Histórico**: Registro automático de buscas dos últimos 2 dias.
-* 🚀 **Git-Sync**: Comandos integrados para backup e restauração no GitHub.
 
 ---
 
