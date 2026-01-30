@@ -113,6 +113,16 @@ function play-link {
     fi
     python3 ~/porco-bot/play.py --mix "$1"
 }
+
+function pausar {
+    echo '{"command": ["set_property", "pause", true]}' | socat - "/tmp/porco.sock" >/dev/null 2>&1
+    echo "⏸️ Música pausada."
+}
+
+function continuar {
+    echo '{"command": ["set_property", "pause", false]}' | socat - "/tmp/porco.sock" >/dev/null 2>&1
+    echo "▶️ Retomando a música..."
+}
 porco-help() {
     echo -e "\e[1;35m"
     echo "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣀⣤⣤⣶⣶⣶⣶⣦⣤⣄⣀⠀⠀⠀⠀⠀⠀⠀⠀⠀"
@@ -128,15 +138,12 @@ porco-help() {
     echo -e "--- \e[1;33mPORCO MUSIC BOT\e[0m ---"
     echo -e "\e[1;33macordar-porco\e[0m -> Inicia/Reinicia o bot"
     echo -e "\e[1;32mplay [busca]\e[0m  -> Toca 10 músicas"
-    echo -e "\e[1;32mplay-link [link]\e[0m-> Gera Mix (10 sons) de um link"
+    echo -e "\e[1;32mplay-link [link]\e[0m-> Gera Mix de um link"
+    echo -e "\e[1;32mpausar / continuar\e[0m -> Pause/Play na música"
     echo -e "\e[1;32mfila\e[0m          -> Ver lista"
     echo -e "\e[1;32mtocando\e[0m       -> Ver progresso"
     echo -e "\e[1;32mproxima\e[0m       -> Pular música"
     echo -e "\e[1;32mvolume [0-100]\e[0m-> Ajustar som"
     echo -e "\e[1;35mporco-log\e[0m     -> Ver log ao vivo"
-    echo -e "\e[1;36mhistorico\e[0m     -> Ver buscas"
-    echo -e "\e[1;32mlimpar\e[0m        -> Reset total"
-    echo -e "\e[1;34mupdate-git\e[0m    -> GitHub"
-    echo -e "\e[1;31mupdate-interno\e[0m-> Gitea"
     echo -e "-----------------------\n"
 }
