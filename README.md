@@ -27,7 +27,6 @@ Este projeto é um bot de música leve, focado em performance e simplicidade, fe
 | \`volume [0-100]\` | Ajusta o volume (ou \`volume +\` / \`volume -\`) |
 | \`historico\` | Lista as últimas buscas realizadas |
 | \`limpar\` | Reseta o bot e limpa a fila de reprodução |
-| \`update-git\` | Sincroniza suas mudanças com o repositório |
 
 ---
 
