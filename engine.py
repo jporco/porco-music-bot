@@ -1,50 +1,37 @@
+import subprocess
 import os
 import time
-import subprocess
-import sys
 
 QUEUE_FILE = os.path.expanduser("~/porco-bot/queue.txt")
-SOCKET = "/tmp/porco.sock"
-
-def log(msg):
-    print(f"🐷 {msg}", flush=True)
+SOCKET_PATH = "/tmp/porco.sock"
 
 def play_next():
-    if not os.path.exists(QUEUE_FILE) or os.stat(QUEUE_FILE).st_size == 0:
-        return
-
-    with open(QUEUE_FILE, "r") as f:
-        lines = f.readlines()
-    
-    if not lines:
-        return
-
-    next_song = lines[0].strip()
-    with open(QUEUE_FILE, "w") as f:
-        f.writelines(lines[1:])
-
-    try:
-        if "|" not in next_song:
-            log(f"Linha inválida na fila: {next_song}")
-            return
-            
-        url = next_song.split("|")[1].strip()
-        log(f"Tocando agora: {next_song.split('|')[0]}")
+    if os.path.exists(QUEUE_FILE):
+        with open(QUEUE_FILE, "r") as f:
+            lines = f.readlines()
         
-        # Remove socket antigo se existir
-        if os.path.exists(SOCKET):
-            os.remove(SOCKET)
-
-        subprocess.run([
-            "mpv", "--no-video", 
-            f"--input-ipc-server={SOCKET}",
-            url
-        ])
-    except Exception as e:
-        log(f"Erro ao tocar: {e}")
+        if lines:
+            next_song = lines[0].strip()
+            with open(QUEUE_FILE, "w") as f:
+                f.writelines(lines[1:])
+            
+            url = next_song.split("|")[-1].strip()
+            
+            # Adicionado o filtro loudnorm para normalizar o volume
+            cmd = [
+                "mpv",
+                "--no-video",
+                f"--input-ipc-server={SOCKET_PATH}",
+                "--af=loudnorm=I=-14:TP=-3:LRA=11", 
+                "--no-terminal",
+                url
+            ]
+            
+            subprocess.run(cmd)
+            return True
+    return False
 
 if __name__ == "__main__":
-    log("Motor iniciado e aguardando fila...")
     while True:
-        play_next()
-        time.sleep(2)
+        if not play_next():
+            time.sleep(2)
