@@ -1,0 +1,8 @@
+#!/bin/bash
+if [[ "$1" == "antena" && "$2" == "1" ]]; then
+    echo -e "\e[1;35m📻 Sintonizando Antena 1 Digital...\e[0m"
+    sudo killall -9 mpv 2>/dev/null
+    mpv --no-video "https://antena1.com.br/stream"
+else
+    echo "Uso: play-radio antena 1"
+fi
