@@ -1,0 +1,30 @@
+#!/usr/bin/env python3
+import sys
+import requests
+import subprocess
+
+def busca_radio(nome):
+    print(f"🔎 Procurando rádio: {nome}...")
+    url = f"https://de1.api.radio-browser.info/json/stations/byname/{nome}"
+    
+    try:
+        response = requests.get(url, timeout=5)
+        radios = response.json()
+        
+        if not radios:
+            print(f"❌ Nenhuma rádio encontrada.")
+            return
+
+        radio = radios[0]
+        print(f"📻 Estação: {radio['name']}")
+        print(f"🚀 Iniciando transmissão...")
+
+        subprocess.run(["sudo", "killall", "-9", "mpv"], stderr=subprocess.DEVNULL)
+        subprocess.run(["mpv", "--no-video", radio['url_resolved']])
+
+    except Exception as e:
+        print(f"⚠️ Erro: {e}")
+
+if __name__ == "__main__":
+    if len(sys.argv) > 1:
+        busca_radio(" ".join(sys.argv[1:]))
