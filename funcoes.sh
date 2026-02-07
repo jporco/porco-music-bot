@@ -158,3 +158,20 @@ function update-geral {
     
     echo "✨ Sistema e Bot estão 100% atualizados!"
 }
+
+function update-git {
+    echo "📤 Enviando atualizações para o Git (GitHub/Gitea)..."
+    cd ~/porco-music-bot
+    
+    # Adiciona as mudanças
+    git add .
+    
+    # Define a mensagem do commit
+    local MSG="${*:-Update Geral $(date +'%d/%m/%Y %H:%M')}"
+    git commit -m "$MSG"
+    
+    # Tenta enviar para o origin (Gitea/GitHub)
+    git push origin main
+    
+    echo "✅ Git atualizado com sucesso!"
+}
