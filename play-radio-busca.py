@@ -2,6 +2,7 @@
 import subprocess, sys, os, json, urllib.request, time
 
 QUEUE_FILE = os.path.expanduser("~/porco-music-bot/queue.txt")
+RADIO_ATUAL = os.path.expanduser("~/porco-music-bot/radio-atual.txt")
 
 def buscar_radio(termo):
     try:
@@ -43,8 +44,16 @@ def buscar_radio(termo):
                 escolha = int(cmd)
                 if 1 <= escolha <= len(all_stations):
                     sel = all_stations[escolha - 1]
+                    
+                    # Salva na fila para o motor tocar
                     with open(QUEUE_FILE, "w") as f:
                         f.write(f"📻 RADIO: {sel['name']} | {sel['url_resolved']}\n")
+                    with open(RADIO_ATUAL, 'w') as fr: fr.write(sel['name'] + '\n')
+                    
+                    # NOVIDADE: Salva o nome da rádio para o comando 'tocando-radio'
+                    with open(RADIO_ATUAL, "w") as f:
+                        f.write(sel['name'])
+                        
                     print(f"\n✅ Tocando: {sel['name']}")
                     break
     except Exception as e:
