@@ -1,5 +1,5 @@
-bot.log
-temp/
-*.mp3
-.porco_credentials
+*.log
+queue.txt
+historico.txt
+__pycache__/
 .DS_Store
