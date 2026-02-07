@@ -1,37 +1,36 @@
-import subprocess
-import os
-import time
+#!/usr/bin/env python3
+import subprocess, os, time, sys
 
-QUEUE_FILE = os.path.expanduser("~/porco-bot/queue.txt")
+QUEUE_FILE = os.path.expanduser("~/porco-music-bot/queue.txt")
 SOCKET_PATH = "/tmp/porco.sock"
 
 def play_next():
-    if os.path.exists(QUEUE_FILE):
-        with open(QUEUE_FILE, "r") as f:
-            lines = f.readlines()
-        
-        if lines:
-            next_song = lines[0].strip()
-            with open(QUEUE_FILE, "w") as f:
-                f.writelines(lines[1:])
-            
-            url = next_song.split("|")[-1].strip()
-            
-            # Adicionado o filtro loudnorm para normalizar o volume
-            cmd = [
-                "mpv",
-                "--no-video",
-                f"--input-ipc-server={SOCKET_PATH}",
-                "--af=loudnorm=I=-14:TP=-3:LRA=11", 
-                "--no-terminal",
-                url
-            ]
-            
-            subprocess.run(cmd)
-            return True
-    return False
+    if not os.path.exists(QUEUE_FILE): return False
+    with open(QUEUE_FILE, "r") as f:
+        lines = [l.strip() for l in f.readlines() if l.strip()]
+    if not lines: return False
+
+    current = lines[0]
+    with open(QUEUE_FILE, "w") as f:
+        f.writelines("\n".join(lines[1:]) + "\n")
+    
+    url = current.split("|")[-1].strip()
+    print(f"🎶 Processando: {current.split('|')[0]}")
+
+    # Remove socket antigo se existir
+    if os.path.exists(SOCKET_PATH): os.remove(SOCKET_PATH)
+
+    # Comando MPV para o Mint
+    cmd = [
+        "mpv", "--no-video", "--no-terminal",
+        f"--input-ipc-server={SOCKET_PATH}",
+        url
+    ]
+    subprocess.run(cmd)
+    return True
 
 if __name__ == "__main__":
+    print("🚀 MOTOR PORCO (MINT VERSION) ATIVO")
     while True:
         if not play_next():
-            time.sleep(2)
+            time.sleep(1)
