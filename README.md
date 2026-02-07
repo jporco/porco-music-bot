@@ -1,60 +1,17 @@
-# 🐷 Porco Music Bot 🎶
+# 🐷 Porco Music Bot (Versão Linux Mint)
 
-> **O player de música via terminal mais roots e eficiente que você já viu.**
+Bot de música otimizado para **Linux Mint / Debian**.
 
-Este projeto é um bot de música leve, focado em performance e simplicidade, feito para rodar direto no seu Linux (especialmente Arch e Ubuntu/Debian).
+## 🛠️ Comandos Principais
+- `acordar-porco`: Inicia o motor do bot.
+- `play [busca]`: Busca e toca músicas do YouTube.
+- `play-radio-busca [nome]`: Busca rádios com paginação (`m` para mais, `v` para voltar).
+- `volume [0-100]`: Ajusta o volume via socket IPC.
+- `wipe`: Faxina total (para tudo, limpa fila e reinicia).
+- `tocando`: Mostra a barra de progresso da música atual.
+- `update-interno`: Sincroniza o código com o Gitea e atualiza os comandos do sistema.
 
----
-
-## ✨ Funcionalidades
-
-* 🔍 **Busca Inteligente**: Encontra as 10 melhores correspondências no YouTube.
-* 🛡️ **Filtro Anti-Show**: Ignora automaticamente vídeos com mais de 7 minutos.
-* 📊 **Progresso Real-time**: Barra de progresso visual estilizada no terminal.
-* 📜 **Histórico**: Registro automático de buscas dos últimos 2 dias.
-
----
-
-## 🛠️ Comandos Disponíveis
-
-| Comando | Função |
-| :--- | :--- |
-| \`play [busca]\` | Busca e adiciona 10 músicas à fila |
-| \`fila\` | Mostra o que está tocando e as próximas |
-| \`tocando\` | Exibe a barra de progresso e tempo atual |
-| \`proxima\` | Pula para a próxima faixa |
-| \`volume [0-100]\` | Ajusta o volume (ou \`volume +\` / \`volume -\`) |
-| \`historico\` | Lista as últimas buscas realizadas |
-| \`limpar\` | Reseta o bot e limpa a fila de reprodução |
-
----
-
-## 🚀 Como Instalar
-
-1. **Clone o repositório:**
-   \`\`\`bash
-   git clone https://github.com/jporco/porco-music-bot.git
-   cd porco-music-bot
-   \`\`\`
-
-2. **Rode o instalador:**
-   \`\`\`bash
-   chmod +x install.sh
-   ./install.sh
-   \`\`\`
-
-3. **Carregue os comandos:**
-   \`\`\`bash
-   source ~/porco-bot/funcoes.sh
-   \`\`\`
-
----
-
-## 🛡️ Requisitos do Sistema
-* **Python 3**
-* **MPV** (O cérebro do áudio)
-* **yt-dlp** (Para buscar no YouTube)
-* **socat** (Comunicação entre scripts)
-
----
-*Feito 🐷 por jporco.*
+## 📁 Estrutura
+- **Pasta oficial:** `~/porco-music-bot`
+- **Socket:** `/tmp/porco.sock`
+- **Logs:** `~/porco-music-bot/bot.log`
