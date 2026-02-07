@@ -29,11 +29,28 @@ function volume {
 
 # --- OUTROS ---
 function update-interno {
-    sudo ln -sf "$BASE_DIR/engine.py" /usr/local/bin/acordar-porco
-    sudo ln -sf "$BASE_DIR/play.py" /usr/local/bin/play
-    sudo ln -sf "$BASE_DIR/play-radio-busca.py" /usr/local/bin/play-radio-busca
-    sudo ln -sf "$BASE_DIR/volume.py" /usr/local/bin/volume
-    echo "✅ Links sincronizados!"
+    echo "📤 Enviando para o Gitea Interno..."
+    cd ~/porco-music-bot
+    
+    # Adiciona tudo da pasta atual
+    git add .
+    
+    # Faz o commit com data/hora se não passar mensagem
+    local MSG="${*:-Update Interno $(date +'%d/%m/%Y %H:%M')}"
+    git commit -m "$MSG"
+    
+    # Envia para o servidor interno (Gitea)
+    # Se o nome do seu remote não for 'origin' no interno, mude abaixo
+    git push origin main
+    
+    # Atualiza os links do sistema para garantir que rodem desta pasta
+    echo "🔄 Sincronizando comandos no sistema..."
+    sudo ln -sf ~/porco-music-bot/engine.py /usr/local/bin/acordar-porco
+    sudo ln -sf ~/porco-music-bot/play.py /usr/local/bin/play
+    sudo ln -sf ~/porco-music-bot/play-radio-busca.py /usr/local/bin/play-radio-busca
+    sudo ln -sf ~/porco-music-bot/volume.py /usr/local/bin/volume
+    
+    echo "✅ Gitea e Sistema atualizados!"
 }
 
 function wipe {
