@@ -70,3 +70,91 @@ function wipe {
     acordar-porco
     echo "🚀 Bot reiniciado e pronto para outra!"
 }
+
+function tocando-radio {
+    local S="/tmp/porco.sock"
+    
+    # 1. Verifica se o motor está rodando
+    if [ ! -S "$S" ]; then
+        echo "⚠️ Off (O motor não está tocando rádio agora)"
+        return
+    fi
+
+    echo -e "\n📻 --- STATUS DA RÁDIO ---"
+    
+    # 2. Busca o nome da rádio que salvamos no queue.txt
+    # O play-radio-busca salva como: 📻 RADIO: Nome | URL
+    local NOME_RADIO=$(grep "RADIO:" ~/porco-music-bot/queue.txt | cut -d'|' -f1 | sed 's/📻 RADIO: //')
+    
+    if [ -z "$NOME_RADIO" ]; then
+        echo "🎶 Sintonizando estação..."
+    else
+        echo "📡 Estação: $NOME_RADIO"
+    fi
+
+    # 3. Pega o tempo de transmissão direto do MPV
+    local C_RAW=$(echo '{"command":["get_property","time-pos"]}' | socat - "$S" 2>/dev/null | grep -oP '"data":\K[0-9.]+')
+    
+    if [ ! -z "$C_RAW" ]; then
+        local C=$(echo "$C_RAW" | cut -d. -f1)
+        printf "⏱️  No ar há: %02d:%02d:%02d\n" $((C/3600)) $(((C%3600)/60)) $((C%60))
+    fi
+    echo -e "---------------------------\n"
+}
+
+function tocando-radio {
+    local S="/tmp/porco.sock"
+    
+    # 1. Verifica se o motor está rodando
+    if [ ! -S "$S" ]; then
+        echo "⚠️ Off (O motor não está tocando rádio agora)"
+        return
+    fi
+
+    echo -e "\n📻 --- STATUS DA RÁDIO ---"
+    
+    # 2. Busca o nome da rádio que salvamos no queue.txt
+    # O play-radio-busca salva como: 📻 RADIO: Nome | URL
+    local NOME_RADIO=$(grep "RADIO:" ~/porco-music-bot/queue.txt | cut -d'|' -f1 | sed 's/📻 RADIO: //')
+    
+    if [ -z "$NOME_RADIO" ]; then
+        echo "🎶 Sintonizando estação..."
+    else
+        echo "📡 Estação: $NOME_RADIO"
+    fi
+
+    # 3. Pega o tempo de transmissão direto do MPV
+    local C_RAW=$(echo '{"command":["get_property","time-pos"]}' | socat - "$S" 2>/dev/null | grep -oP '"data":\K[0-9.]+')
+    
+    if [ ! -z "$C_RAW" ]; then
+        local C=$(echo "$C_RAW" | cut -d. -f1)
+        printf "⏱️  No ar há: %02d:%02d:%02d\n" $((C/3600)) $(((C%3600)/60)) $((C%60))
+    fi
+    echo -e "---------------------------\n"
+}
+
+function update-geral {
+    echo "🐷 Iniciando atualização geral do ecossistema Porco..."
+    
+    # 1. Atualiza repositórios do sistema
+    echo "📦 [1/5] Atualizando repositórios do Linux Mint..."
+    sudo apt update -y
+    
+    # 2. Instala/Atualiza dependências essenciais
+    echo "🛠️ [2/5] Garantindo dependências (mpv, socat, python3)..."
+    sudo apt install mpv socat python3 python3-pip -y
+    
+    # 3. Atualiza o yt-dlp (O mais importante para o YouTube não travar)
+    echo "🎥 [3/5] Atualizando yt-dlp para a versão mais recente..."
+    sudo python3 -m pip install -U yt-dlp
+    
+    # 4. Sincroniza o código do bot (Interno e Sistema)
+    echo "🔄 [4/5] Rodando update-interno e reparando links..."
+    update-interno "Update Geral: Sistema e Dependências"
+    
+    # 5. Limpeza de cache do yt-dlp
+    echo "🧹 [5/5] Limpando cache de busca..."
+    yt-dlp --rm-cache-dir >/dev/null 2>&1
+    
+    echo "✨ Sistema e Bot estão 100% atualizados!"
+}
