@@ -96,29 +96,30 @@ function ajuda {
 
 # --- MANUTENÇÃO ---
 function update-git {
-    echo "📤 Enviando para o Git (Interno + Externo)..."
+    echo "📤 Sincronizando Gitea e GitHub..."
     cd "$BASE_DIR"
+    
+    # Adiciona tudo (incluindo novos arquivos e a pasta arch-edition)
     git add -A
+    
     local MSG="${*:-Update Geral $(date +'%d/%m/%Y %H:%M')}"
-    git commit -m "$MSG"
     
-    # Push para Gitea Interno
-    echo "🏠 Gitea..."
-    git push origin main
-    
-    # Push para GitHub (se existir remote 'github')
-    if git remote | grep -q "github"; then
-        echo "🌐 GitHub..."
-        git push github main
+    # Tenta fazer o commit
+    if git commit -m "$MSG"; then
+        echo "✅ Mudanças registradas."
+    else
+        echo "ℹ️ Nada novo para commitar."
     fi
 
-    # Atualiza links do sistema
-    sudo ln -sf "$BASE_DIR/engine.py" /usr/local/bin/acordar-porco
-    sudo ln -sf "$BASE_DIR/play.py" /usr/local/bin/play
-    sudo ln -sf "$BASE_DIR/play-radio-busca.py" /usr/local/bin/play-radio-busca
-    sudo ln -sf "$BASE_DIR/volume.py" /usr/local/bin/volume
+    # 1. Envia para o Gitea (seu servidor interno)
+    echo "🏠 Enviando para o Gitea (origin)..."
+    git push origin main
 
-    echo "✅ Git e Comandos atualizados!"
+    # 2. Envia para o GitHub (seu servidor externo)
+    echo "🌐 Enviando para o GitHub (github)..."
+    git push github main
+
+    echo "✨ Sincronização concluída com sucesso!"
 }
 
 function update-geral {
