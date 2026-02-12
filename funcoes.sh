@@ -28,13 +28,34 @@ function play-radio-busca {
 
 function proxima {
     echo '{"command":["playlist-next"]}' | socat - "$SOCKET_PATH" >/dev/null 2>&1
-    echo "⏭️  Pulando para a próxima..."
+    echo "⏭️ Pulando para a próxima..."
 }
 
 function volume {
     [ ! -S "$SOCKET_PATH" ] && { echo "⚠️ Off"; return; }
-    echo "{\"command\":[\"set_property\",\"volume\",$1]}" | socat - "$SOCKET_PATH" >/dev/null 2>&1
-    echo "📢 Vol: $1%"
+    
+    # Pega o volume atual real do MPV
+    local VOL_ATUAL=$(echo '{"command":["get_property","volume"]}' | socat - "$SOCKET_PATH" 2>/dev/null | grep -oP '"data":\K[0-9.]+' | cut -d. -f1)
+    : ${VOL_ATUAL:=50}
+
+    local NOVO_VOL=$1
+
+    # Lógica para + e -
+    if [[ "$1" == "+" ]]; then
+        NOVO_VOL=$((VOL_ATUAL + 10))
+    elif [[ "$1" == "-" ]]; then
+        NOVO_VOL=$((VOL_ATUAL - 10))
+    elif [[ -z "$1" ]]; then
+        echo "📢 Volume atual: $VOL_ATUAL%"
+        return
+    fi
+
+    # Limites de segurança
+    [ "$NOVO_VOL" -gt 100 ] && NOVO_VOL=100
+    [ "$NOVO_VOL" -lt 0 ] && NOVO_VOL=0
+
+    echo "{\"command\":[\"set_property\",\"volume\",$NOVO_VOL]}" | socat - "$SOCKET_PATH" >/dev/null 2>&1
+    echo "📢 Vol: $NOVO_VOL%"
 }
 
 # --- STATUS E EXIBIÇÃO ---
@@ -49,7 +70,7 @@ function tocando-radio {
     local C_RAW=$(echo '{"command":["get_property","time-pos"]}' | socat - "$SOCKET_PATH" 2>/dev/null | grep -oP '"data":\K[0-9.]+')
     if [ ! -z "$C_RAW" ]; then
         local C=$(echo "$C_RAW" | cut -d. -f1)
-        printf "⏱️  No ar há: %02d:%02d:%02d\n" $((C/3600)) $(((C%3600)/60)) $((C%60))
+        printf "⏱️ No ar há: %02d:%02d:%02d\n" $((C/3600)) $(((C%3600)/60)) $((C%60))
     fi
     echo -e "---------------------------\n"
 }
@@ -69,23 +90,39 @@ function ajuda {
     echo -e "--- \e[1;33mPORCO MUSIC BOT\e[0m ---"
     echo -e "  \e[1;32macordar-porco\e[0m | \e[1;32mwipe\e[0m"
     echo -e "  \e[1;32mplay [busca]\e[0m | \e[1;32mplay-radio-busca\e[0m"
-    echo -e "  \e[1;32mvolume [0-100]\e[0m | \e[1;32mtocando-radio\e[0m"
+    echo -e "  \e[1;32mvolume [+ / - / 0-100]\e[0m | \e[1;32mtocando-radio\e[0m"
     echo -e "  \e[1;32mupdate-geral\e[0m | \e[1;32mupdate-git\e[0m"
 }
 
 # --- MANUTENÇÃO ---
 function update-git {
-    echo "📤 Enviando para o Git..."
+    echo "📤 Enviando para o Git (Interno + Externo)..."
     cd "$BASE_DIR"
-    git add .
+    git add -A
     local MSG="${*:-Update Geral $(date +'%d/%m/%Y %H:%M')}"
     git commit -m "$MSG"
+    
+    # Push para Gitea Interno
+    echo "🏠 Gitea..."
     git push origin main
-    echo "✅ Git atualizado!"
+    
+    # Push para GitHub (se existir remote 'github')
+    if git remote | grep -q "github"; then
+        echo "🌐 GitHub..."
+        git push github main
+    fi
+
+    # Atualiza links do sistema
+    sudo ln -sf "$BASE_DIR/engine.py" /usr/local/bin/acordar-porco
+    sudo ln -sf "$BASE_DIR/play.py" /usr/local/bin/play
+    sudo ln -sf "$BASE_DIR/play-radio-busca.py" /usr/local/bin/play-radio-busca
+    sudo ln -sf "$BASE_DIR/volume.py" /usr/local/bin/volume
+
+    echo "✅ Git e Comandos atualizados!"
 }
 
 function update-geral {
-    echo "🐷 Atualização Geral..."
+    echo "🐷 Atualização Geral do Porco..."
     if [ -f /etc/arch-release ]; then
         sudo pacman -Syu yt-dlp mpv socat --noconfirm
     else
