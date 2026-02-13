@@ -26,6 +26,10 @@ function play-radio-busca {
     python3 "$BASE_DIR/play-radio-busca.py" "$*"
 }
 
+function play-radio-genero {
+    python3 "$BASE_DIR/play-radio-genero.py" "$*"
+}
+
 function proxima {
     echo '{"command":["playlist-next"]}' | socat - "$SOCKET_PATH" >/dev/null 2>&1
     echo "⏭️ Pulando para a próxima..."
@@ -34,13 +38,11 @@ function proxima {
 function volume {
     [ ! -S "$SOCKET_PATH" ] && { echo "⚠️ Off"; return; }
     
-    # Pega o volume atual real do MPV
     local VOL_ATUAL=$(echo '{"command":["get_property","volume"]}' | socat - "$SOCKET_PATH" 2>/dev/null | grep -oP '"data":\K[0-9.]+' | cut -d. -f1)
     : ${VOL_ATUAL:=50}
 
     local NOVO_VOL=$1
 
-    # Lógica para + e -
     if [[ "$1" == "+" ]]; then
         NOVO_VOL=$((VOL_ATUAL + 10))
     elif [[ "$1" == "-" ]]; then
@@ -50,7 +52,6 @@ function volume {
         return
     fi
 
-    # Limites de segurança
     [ "$NOVO_VOL" -gt 100 ] && NOVO_VOL=100
     [ "$NOVO_VOL" -lt 0 ] && NOVO_VOL=0
 
@@ -90,6 +91,7 @@ function ajuda {
     echo -e "--- \e[1;33mPORCO MUSIC BOT\e[0m ---"
     echo -e "  \e[1;32macordar-porco\e[0m | \e[1;32mwipe\e[0m"
     echo -e "  \e[1;32mplay [busca]\e[0m | \e[1;32mplay-radio-busca\e[0m"
+    echo -e "  \e[1;32mplay-radio-genero [rock, jazz...]\e[0m"
     echo -e "  \e[1;32mvolume [+ / - / 0-100]\e[0m | \e[1;32mtocando-radio\e[0m"
     echo -e "  \e[1;32mupdate-geral\e[0m | \e[1;32mupdate-git\e[0m"
 }
@@ -98,27 +100,17 @@ function ajuda {
 function update-git {
     echo "📤 Sincronizando Gitea e GitHub..."
     cd "$BASE_DIR"
-    
-    # Adiciona tudo (incluindo novos arquivos e a pasta arch-edition)
     git add -A
-    
     local MSG="${*:-Update Geral $(date +'%d/%m/%Y %H:%M')}"
-    
-    # Tenta fazer o commit
     if git commit -m "$MSG"; then
         echo "✅ Mudanças registradas."
     else
         echo "ℹ️ Nada novo para commitar."
     fi
-
-    # 1. Envia para o Gitea (seu servidor interno)
     echo "🏠 Enviando para o Gitea (origin)..."
     git push origin main
-
-    # 2. Envia para o GitHub (seu servidor externo)
     echo "🌐 Enviando para o GitHub (github)..."
     git push github main
-
     echo "✨ Sincronização concluída com sucesso!"
 }
 
