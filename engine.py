@@ -20,17 +20,18 @@ def play_next():
     # Remove socket antigo se existir
     if os.path.exists(SOCKET_PATH): os.remove(SOCKET_PATH)
 
-    # Comando MPV para o Mint
+    # Comando MPV OTIMIZADO PARA ARCH
     cmd = [
         "mpv", "--no-video", "--no-terminal",
         f"--input-ipc-server={SOCKET_PATH}",
+        "--ao=pulse", "--cache=yes", "--audio-buffer=0.5",
         url
     ]
     subprocess.run(cmd)
     return True
 
 if __name__ == "__main__":
-    print("🚀 MOTOR PORCO (MINT VERSION) ATIVO")
+    print("🚀 MOTOR PORCO (ARCH VERSION) ATIVO")
     while True:
         if not play_next():
             time.sleep(1)

@@ -12,6 +12,7 @@ acordar-porco() {
     pkill -9 -f engine.py >/dev/null 2>&1
     pkill -9 mpv >/dev/null 2>&1
     rm -f "$SOCKET_PATH"
+    # CORREÇÃO: Caminho para a pasta correta
     python3 "$BASE_DIR/engine.py" > "$BASE_DIR/bot.log" 2>&1 &
     sleep 1
     echo "✅ O porco está de pé!"
@@ -88,7 +89,7 @@ function ajuda {
     echo "⠀⠀⠀⠀⠀⢻⣿⣿⠀⠀⢸⣿⡇⠀⠀⠀⠀⠀⢻⣿⠃⠸⣿⡇⠀⠀⠀⠀⠀⠀"
     echo "⠀⠀⠀⠀⠀⠈⠿⠇⠀⠀⠀⠻⠇⠀⠀⠀⠀⠀⠈⠿⠀⠀⠻⠿⠀⠀⠀⠀⠀⠀"
     echo -e "\e[0m"
-    echo -e "--- \e[1;33mPORCO MUSIC BOT\e[0m ---"
+    echo -e "--- \e[1;33mPORCO MUSIC BOT (ARCH)\e[0m ---"
     echo -e "  \e[1;32macordar-porco\e[0m | \e[1;32mwipe\e[0m"
     echo -e "  \e[1;32mplay [busca]\e[0m | \e[1;32mplay-radio-busca\e[0m"
     echo -e "  \e[1;32mplay-radio-genero [rock, jazz...]\e[0m"
@@ -115,13 +116,10 @@ function update-git {
 }
 
 function update-geral {
-    echo "🐷 Atualização Geral do Porco..."
-    if [ -f /etc/arch-release ]; then
-        sudo pacman -Syu yt-dlp mpv socat --noconfirm
-    else
-        sudo apt update && sudo apt install yt-dlp mpv socat -y
-    fi
-    update-git "Update Geral via $(hostname)"
+    echo "🐷 Atualização Geral do Porco (Arch Edition)..."
+    # No Arch, o yt-dlp e o mpv estão nos repositórios oficiais
+    sudo pacman -Syu yt-dlp mpv socat --noconfirm
+    update-git "Update Geral via $(hostname) [Arch]"
 }
 
 function wipe {
