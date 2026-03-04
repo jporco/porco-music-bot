@@ -2,24 +2,32 @@
 
 # --- CONFIGURAÇÃO ---
 BASE_DIR="$HOME/porco-music-bot"
-SOCKET_PATH="/tmp/porco.sock"
+SOCKET_PATH="/tmp/porco_mpv.sock"
 QUEUE_FILE="$BASE_DIR/queue.txt"
 RADIO_FILE="$BASE_DIR/radio-atual.txt"
 
 # --- MOTOR ---
 function acordar-porco {
+    # Check for dependencies
+    for cmd in socat python3 mpv yt-dlp fzf; do
+        if ! command -v $cmd &> /dev/null; then
+            echo -e "\e[1;31m⚠️ ERRO: '$cmd' não encontrado!\e[0m"
+            echo -e "\e[1;33mInstale as dependências com: sudo pacman -S yt-dlp mpv socat fzf\e[0m"
+            return 1
+        fi
+    done
+
     echo -e "\e[1;35m🐷 Acordando o porco...\e[0m"
     
     # Mata processos antigos sem travar
     pkill -9 -f "engine.py" >/dev/null 2>&1 || true
     pkill -9 mpv >/dev/null 2>&1 || true
     
-    # Limpa arquivos temporários
+    # Limpa arquivos temporários (GARANTE QUE O SOCKET NÃO É UM ARQUIVO COMUM)
     rm -f "$SOCKET_PATH" "$RADIO_FILE"
     touch "$QUEUE_FILE"
 
     # Inicia o motor desvinculado do terminal
-    # Portable way for both Bash and Zsh
     python3 "$BASE_DIR/engine.py" </dev/null >"$BASE_DIR/bot.log" 2>&1 & 
     disown %python3 2>/dev/null || disown $! 2>/dev/null
     
@@ -40,12 +48,16 @@ function play-radio-genero {
 }
 
 function proxima {
-    echo '{"command":["playlist-next"]}' | socat - "$SOCKET_PATH" >/dev/null 2>&1
-    echo -e "\e[1;34m⏭️  Próxima da fila...\e[0m"
+    # Mata o mpv atual para o motor carregar a próxima
+    [ -S "$SOCKET_PATH" ] && echo '{"command":["quit"]}' | socat - "$SOCKET_PATH" >/dev/null 2>&1
+    echo -e "\e[1;34m⏭️  Pulei! Próxima música chegando...\e[0m"
 }
 
 function volume {
-    [ ! -S "$SOCKET_PATH" ] && { echo "⚠️ Motor desligado."; return; }
+    if [ ! -S "$SOCKET_PATH" ]; then
+        echo -e "\e[1;31m⚠️  Motor desligado ou MPV não iniciado.\e[0m"
+        return
+    fi
     
     local VOL_ATUAL=$(echo '{"command":["get_property","volume"]}' | socat - "$SOCKET_PATH" 2>/dev/null | grep -oP '"data":\K[0-9.]+' | cut -d. -f1)
     : ${VOL_ATUAL:=50}
@@ -70,31 +82,55 @@ function volume {
 
 # --- STATUS MODERNO ---
 function tocando {
-    [ ! -S "$SOCKET_PATH" ] && { echo -e "\e[1;31m⚠️  Nada tocando agora.\e[0m"; return; }
-
-    local TITLE=$(echo '{"command":["get_property","media-title"]}' | socat - "$SOCKET_PATH" 2>/dev/null | grep -oP '"data":"\K[^"]+')
-    local POS=$(echo '{"command":["get_property","time-pos"]}' | socat - "$SOCKET_PATH" 2>/dev/null | grep -oP '"data":\K[0-9.]+' | cut -d. -f1)
-    local DUR=$(echo '{"command":["get_property","duration"]}' | socat - "$SOCKET_PATH" 2>/dev/null | grep -oP '"data":\K[0-9.]+' | cut -d. -f1)
-
-    if [ -z "$TITLE" ]; then
-        echo -e "\e[1;33m⏳ Sintonizando...\e[0m"
+    # 1. Verifica se o socket existe
+    if [ ! -S "$SOCKET_PATH" ]; then
+        if [ -f "$RADIO_FILE" ]; then
+            local R_TITLE=$(cat "$RADIO_FILE" 2>/dev/null)
+            echo -e "\n\e[1;35m🎵 SINTONIZANDO:\e[0m"
+            echo -e "\e[1;36m${R_TITLE:-Desconhecido}\e[0m"
+            echo -e "\e[1;33m🛰️  Resolvendo link seguro... (quase lá)\e[0m\n"
+        else
+            echo -e "\e[1;31m⚠️  Nada tocando agora.\e[0m"
+        fi
         return
     fi
 
+    # 2. Pega metadados via socket (usa "=" para compatibilidade total)
+    local T=$(echo '{"command":["get_property","media-title"]}' | socat - "$SOCKET_PATH" 2>/dev/null | grep -oP '"data":"\K[^"]+')
+    [ -z "$T" ] || [ "$T" = "null" ] && T=$(echo '{"command":["get_property","metadata/by-key/icy-title"]}' | socat - "$SOCKET_PATH" 2>/dev/null | grep -oP '"data":"\K[^"]+')
+    
+    if [ -z "$T" ] || [ "$T" = "null" ]; then
+        echo -e "\e[1;31m⚠️  Sintonizando metadados...\e[0m"
+        return
+    fi
+
+    # 3. Pega progresso e garante valores numéricos
+    local P_RAW=$(echo '{"command":["get_property","time-pos"]}' | socat - "$SOCKET_PATH" 2>/dev/null | grep -oP '"data":\K[0-9.]+' | cut -d. -f1)
+    local D_RAW=$(echo '{"command":["get_property","duration"]}' | socat - "$SOCKET_PATH" 2>/dev/null | grep -oP '"data":\K[0-9.]+' | cut -d. -f1)
+    
+    local POS=${P_RAW:-0}
+    local DUR=${D_RAW:-0}
     local PER=0
-    if [ ! -z "$DUR" ] && [ "$DUR" -gt 0 ]; then
+
+    if [ "$DUR" -gt 0 ] 2>/dev/null; then
         PER=$((100 * POS / DUR))
     fi
 
+    # 4. Gera a barra de progresso (Loop compatível com todos os shells)
     local BAR_SIZE=20
     local FILLED=$((BAR_SIZE * PER / 100))
     local EMPTY=$((BAR_SIZE - FILLED))
-    local BAR=$(printf "%${FILLED}s" | tr ' ' '█')$(printf "%${EMPTY}s" | tr ' ' '░')
+    local BAR=""
+    # Preenche a barra
+    local i=0
+    while [ $i -lt $FILLED ]; do BAR="${BAR}█"; i=$((i+1)); done
+    i=0
+    while [ $i -lt $EMPTY ]; do BAR="${BAR}░"; i=$((i+1)); done
 
     echo -e "\n\e[1;35m🎵 TOCANDO AGORA:\e[0m"
-    echo -e "\e[1;37m$TITLE\e[0m"
+    echo -e "\e[1;37m$T\e[0m"
     
-    if [ ! -z "$DUR" ]; then
+    if [ "$DUR" -gt 0 ] 2>/dev/null; then
         printf "\e[1;32m%02d:%02d\e[0m [%s] \e[1;32m%02d:%02d\e[0m (%d%%)\n" $((POS/60)) $((POS%60)) "$BAR" $((DUR/60)) $((DUR%60)) "$PER"
     else
         printf "\e[1;34m📻 No ar há: %02d:%02d:%02d\e[0m [LIVE]\n" $((POS/3600)) $(((POS%3600)/60)) $((POS%60))
@@ -144,13 +180,30 @@ alias next="proxima"
 
 # --- MANUTENÇÃO ---
 function update-git {
-    echo -e "\e[1;34m📤 Sincronizando Gitea e GitHub...\e[0m"
+    echo -e "\e[1;34m📤 Sincronizando repositórios...\e[0m"
     cd "$BASE_DIR"
+    
+    # Adicionamos tudo (incluso novos arquivos como o 'subprocess' que o git detectou)
     git add -A
+    
     local MSG="${*:-Update Geral $(date +'%d/%m/%Y %H:%M')}"
-    git commit -m "$MSG" >/dev/null 2>&1
-    git push origin main && git push github main >/dev/null 2>&1
-    echo -e "\e[1;32m✨ Sincronização concluída!\e[0m"
+    if git commit -m "$MSG"; then
+        echo -e "\e[1;32m✅ Mudanças commitadas localmente.\e[0m"
+    else
+        echo -e "\e[1;33mℹ️  Nada novo para commitar.\e[0m"
+    fi
+
+    # Tenta empurrar para os remotes que existirem
+    for remote in $(git remote); do
+        echo -e "\e[1;34m🏠 Enviando para $remote...\e[0m"
+        if git push "$remote" main; then
+            echo -e "\e[1;32m✅ Sucesso em $remote!\e[0m"
+        else
+            echo -e "\e[1;31m❌ Falha em $remote. Verifique suas credenciais/token.\e[0m"
+        fi
+    done
+    
+    echo -e "\e[1;32m✨ Processo de sincronização finalizado.\e[0m"
 }
 
 function update-geral {
@@ -160,8 +213,13 @@ function update-geral {
 }
 
 function wipe {
-    echo -e "\e[1;31m🧹 WIPE: Limpando tudo...\e[0m"
+    echo -e "\e[1;31m🧹 WIPE: Limpando tudo e atualizando comandos...\e[0m"
     # Remove e recria a fila para garantir que não há travas
     rm -f "$QUEUE_FILE"
+    
+    # AUTO-ATUALIZAÇÃO: Recarrega as funções para o usuário
+    source "$BASE_DIR/funcoes.sh" 2>/dev/null
+    
     acordar-porco
+    echo -e "\e[1;32m✨ Comandos atualizados e motor reiniciado!\e[0m"
 }

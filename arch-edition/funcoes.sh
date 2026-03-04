@@ -40,8 +40,9 @@ function play-radio-genero {
 }
 
 function proxima {
-    echo '{"command":["playlist-next"]}' | socat - "$SOCKET_PATH" >/dev/null 2>&1
-    echo -e "\e[1;34m⏭️  Próxima da fila...\e[0m"
+    # Mata o mpv atual para o motor carregar a próxima
+    echo '{"command":["quit"]}' | socat - "$SOCKET_PATH" >/dev/null 2>&1
+    echo -e "\e[1;34m⏭️  Pulei! Próxima música chegando...\e[0m"
 }
 
 function volume {
@@ -73,11 +74,14 @@ function tocando {
     [ ! -S "$SOCKET_PATH" ] && { echo -e "\e[1;31m⚠️  Nada tocando agora.\e[0m"; return; }
 
     local TITLE=$(echo '{"command":["get_property","media-title"]}' | socat - "$SOCKET_PATH" 2>/dev/null | grep -oP '"data":"\K[^"]+')
-    local POS=$(echo '{"command":["get_property","time-pos"]}' | socat - "$SOCKET_PATH" 2>/dev/null | grep -oP '"data":\K[0-9.]+' | cut -d. -f1)
-    local DUR=$(echo '{"command":["get_property","duration"]}' | socat - "$SOCKET_PATH" 2>/dev/null | grep -oP '"data":\K[0-9.]+' | cut -d. -f1)
+    
+    # Fallback para rádios ou metadados lentos
+    if [ -z "$TITLE" ] || [ "$TITLE" == "null" ]; then
+        TITLE=$(echo '{"command":["get_property","metadata/by-key/icy-title"]}' | socat - "$SOCKET_PATH" 2>/dev/null | grep -oP '"data":"\K[^"]+')
+    fi
 
-    if [ -z "$TITLE" ]; then
-        echo -e "\e[1;33m⏳ Sintonizando...\e[0m"
+    if [ -z "$TITLE" ] || [ "$TITLE" == "null" ]; then
+        echo -e "\e[1;33m⏳ Sintonizando metadados...\e[0m"
         return
     fi
 
@@ -144,13 +148,30 @@ alias next="proxima"
 
 # --- MANUTENÇÃO ---
 function update-git {
-    echo -e "\e[1;34m📤 Sincronizando Gitea e GitHub...\e[0m"
+    echo -e "\e[1;34m📤 Sincronizando repositórios...\e[0m"
     cd "$BASE_DIR"
+    
+    # Adicionamos tudo (incluso novos arquivos como o 'subprocess' que o git detectou)
     git add -A
+    
     local MSG="${*:-Update Geral $(date +'%d/%m/%Y %H:%M')}"
-    git commit -m "$MSG" >/dev/null 2>&1
-    git push origin main && git push github main >/dev/null 2>&1
-    echo -e "\e[1;32m✨ Sincronização concluída!\e[0m"
+    if git commit -m "$MSG"; then
+        echo -e "\e[1;32m✅ Mudanças commitadas localmente.\e[0m"
+    else
+        echo -e "\e[1;33mℹ️  Nada novo para commitar.\e[0m"
+    fi
+
+    # Tenta empurrar para os remotes que existirem
+    for remote in $(git remote); do
+        echo -e "\e[1;34m🏠 Enviando para $remote...\e[0m"
+        if git push "$remote" main; then
+            echo -e "\e[1;32m✅ Sucesso em $remote!\e[0m"
+        else
+            echo -e "\e[1;31m❌ Falha em $remote. Verifique suas credenciais/token.\e[0m"
+        fi
+    done
+    
+    echo -e "\e[1;32m✨ Processo de sincronização finalizado.\e[0m"
 }
 
 function update-geral {
@@ -160,8 +181,13 @@ function update-geral {
 }
 
 function wipe {
-    echo -e "\e[1;31m🧹 WIPE: Limpando tudo...\e[0m"
+    echo -e "\e[1;31m🧹 WIPE: Limpando tudo e atualizando comandos...\e[0m"
     # Remove e recria a fila para garantir que não há travas
     rm -f "$QUEUE_FILE"
+    
+    # Tenta recarregar as funções automaticamente para o usuário não ficar "no passado"
+    source "$BASE_DIR/funcoes.sh" 2>/dev/null
+    
     acordar-porco
+    echo -e "\e[1;32m✨ Comandos atualizados e motor reiniciado!\e[0m"
 }

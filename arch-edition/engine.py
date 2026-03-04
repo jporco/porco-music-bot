@@ -20,11 +20,15 @@ def play_next():
     # Remove socket antigo se existir
     if os.path.exists(SOCKET_PATH): os.remove(SOCKET_PATH)
 
-    # Comando MPV OTIMIZADO PARA ARCH
+    # Comando MPV OTIMIZADO PARA ALTA PERFORMANCE
     cmd = [
         "mpv", "--no-video", "--no-terminal",
         f"--input-ipc-server={SOCKET_PATH}",
-        "--ao=pulse", "--cache=yes", "--audio-buffer=0.5",
+        "--ao=pulse", "--cache=yes", 
+        "--ytdl-format=bestaudio/best",
+        "--ytdl-raw-options=ignore-config=,sub-format=en,write-auto-subs=",
+        "--audio-buffer=0.2", "--initial-audio-buffer=0.2",
+        "--force-window=no", "--osd-level=0",
         url
     ]
     subprocess.run(cmd)

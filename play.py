@@ -21,9 +21,6 @@ def search(query, is_mix=False):
     except:
         pass
 
-    # Limpa cache do yt-dlp
-    subprocess.run(["yt-dlp", "--rm-cache-dir"], capture_output=True)
-
     if is_mix:
         print(f"🌀 Gerando mix para: {query}", flush=True)
         cmd = [
@@ -34,55 +31,82 @@ def search(query, is_mix=False):
             query
         ]
     else:
-        print(f"🔎 Buscando '{query}'...", flush=True)
+        print(f"🔎 Buscando '{query}' no YouTube...", flush=True)
+        # USAR --print para extrair apenas o necessário em uma única chamada
+        # --flat-playlist evita processar playlists inteiras se o resultado for uma
         cmd = [
-            "yt-dlp", "--get-title", "--get-id", "--get-duration",
-            "--no-playlist", "--default-search", "ytsearch10",
-            "--match-filter", "duration < 900 & !is_live",
+            "yt-dlp",
+            "--print", "%(title)s|%(id)s|%(duration_string)s",
+            "--no-playlist", "--flat-playlist",
+            "--default-search", "ytsearch10",
             "--ignore-errors", "--no-warnings",
+            "--no-check-certificates", "--socket-timeout", "5",
             f"ytsearch10:{query}"
         ]
     
-    result = subprocess.run(cmd, capture_output=True, text=True).stdout.splitlines()
+    proc = subprocess.run(cmd, capture_output=True, text=True)
+    result = proc.stdout.splitlines()
     
     songs = []
-    for i in range(0, len(result), 3):
-        if i+2 < len(result):
-            title = result[i]
-            vid_id = result[i+1]
-            duration = result[i+2]
-            songs.append(f"[{duration}] {title} | https://www.youtube.com/watch?v={vid_id}")
+    # O formato agora é uma linha por vídeo: Título|ID|Duração
+    for line in result:
+        if "|" in line:
+            try:
+                title, vid_id, duration = line.split("|", 2)
+                songs.append(f"[{duration}] {title} | https://www.youtube.com/watch?v={vid_id}")
+            except ValueError:
+                continue
     
     if not songs:
         print("❌ Nada encontrado.")
         return
 
-    # MODO INTERATIVO COM FZF (Se disponível e terminal)
-    selected_songs = songs
+    # MODO DE SELEÇÃO
+    selected_songs = []
+    
     if sys.stdout.isatty():
         try:
-            # Verifica se fzf existe
+            # Tenta usar FZF primeiro
             subprocess.run(["fzf", "--version"], capture_output=True, check=True)
-            
-            # Prepara entrada para o fzf
             fzf_input = "\n".join(songs)
-            # -m permite seleção múltipla com TAB
             fzf_proc = subprocess.Popen(
-                ["fzf", "-m", "--header", "TAB para selecionar múltiplas, ENTER para confirmar", "--prompt", "🎵 Escolha: "],
+                [
+                    "fzf", "-m", 
+                    "--header", "TAB: selecionar | CTRL-A: todos | CTRL-D: nenhum", 
+                    "--prompt", "🎵 Escolha: ",
+                    "--bind", "ctrl-a:select-all,ctrl-d:deselect-all"
+                ],
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 text=True
             )
             stdout, _ = fzf_proc.communicate(input=fzf_input)
-            
             if stdout:
                 selected_songs = [s.strip() for s in stdout.splitlines() if s.strip()]
-            else:
-                print("🚫 Seleção cancelada.")
-                return
         except (subprocess.CalledProcessError, FileNotFoundError):
-            # Se não tiver fzf, usa as 5 primeiras para ser "mais inteligente" e não poluir
-            selected_songs = songs[:5]
+            # FALLBACK: Lista numerada
+            print("\n" + "="*40)
+            print("🎵 RESULTADOS DA BUSCA (Selecione o número)")
+            print("="*40)
+            for idx, song in enumerate(songs, 1):
+                print(f"{idx}. {song.split('|')[0]}")
+            print("="*40)
+            try:
+                choice = input("👉 Escolha o(s) número(s) (ex: 1 3 ou 'a'): ")
+                if choice.lower() == 'a':
+                    selected_songs = songs
+                else:
+                    indices = [int(i)-1 for i in choice.split() if i.isdigit()]
+                    selected_songs = [songs[i] for i in indices if 0 <= i < len(songs)]
+            except (ValueError, EOFError, KeyboardInterrupt):
+                pass
+    else:
+        # Se não for TTY, pega o primeiro
+        selected_songs = songs[:1]
+
+    if not selected_songs:
+        print("🚫 Seleção cancelada.")
+        return
 
     with open(QUEUE_FILE, "a") as f:
         for s in selected_songs:
