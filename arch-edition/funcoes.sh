@@ -7,19 +7,21 @@ QUEUE_FILE="$BASE_DIR/queue.txt"
 RADIO_FILE="$BASE_DIR/radio-atual.txt"
 
 # --- MOTOR ---
-acordar-porco() {
+function acordar-porco {
     echo -e "\e[1;35m🐷 Acordando o porco...\e[0m"
     
-    # Mata processos antigos com limite de tempo para não travar
-    timeout 2s pkill -9 -f "engine.py" >/dev/null 2>&1 || true
-    timeout 2s pkill -9 mpv >/dev/null 2>&1 || true
+    # Mata processos antigos sem travar
+    pkill -9 -f "engine.py" >/dev/null 2>&1 || true
+    pkill -9 mpv >/dev/null 2>&1 || true
     
-    # Limpa arquivos de controle
+    # Limpa arquivos temporários
     rm -f "$SOCKET_PATH" "$RADIO_FILE"
-    
-    # Inicia o motor de forma totalmente silenciosa e independente
-    # Subshell com & garante independência do shell pai
-    (python3 "$BASE_DIR/engine.py" < /dev/null > "$BASE_DIR/bot.log" 2>&1 &) >/dev/null 2>&1
+    touch "$QUEUE_FILE"
+
+    # Inicia o motor desvinculado do terminal
+    # Portable way for both Bash and Zsh
+    python3 "$BASE_DIR/engine.py" </dev/null >"$BASE_DIR/bot.log" 2>&1 & 
+    disown %python3 2>/dev/null || disown $! 2>/dev/null
     
     echo -e "\e[1;32m✅ O chiqueiro está aberto!\e[0m"
 }
@@ -158,8 +160,8 @@ function update-geral {
 }
 
 function wipe {
-    echo -e "\e[1;31m🧹 WIPE: Restaurando o chiqueiro do zero...\e[0m"
-    > "$QUEUE_FILE"
-    > "$BASE_DIR/bot.log"
+    echo -e "\e[1;31m🧹 WIPE: Limpando tudo...\e[0m"
+    # Remove e recria a fila para garantir que não há travas
+    rm -f "$QUEUE_FILE"
     acordar-porco
 }
