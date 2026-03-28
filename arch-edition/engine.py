@@ -20,22 +20,17 @@ def play_next():
     # Remove socket antigo se existir
     if os.path.exists(SOCKET_PATH): os.remove(SOCKET_PATH)
 
-    # Comando MPV OTIMIZADO PARA ALTA PERFORMANCE
+    # Comando MPV para o Mint
     cmd = [
         "mpv", "--no-video", "--no-terminal",
         f"--input-ipc-server={SOCKET_PATH}",
-        "--ao=pulse", "--cache=yes", 
-        "--ytdl-format=bestaudio/best",
-        "--ytdl-raw-options=ignore-config=,sub-format=en,write-auto-subs=",
-        "--audio-buffer=0.2", "--initial-audio-buffer=0.2",
-        "--force-window=no", "--osd-level=0",
         url
     ]
     subprocess.run(cmd)
     return True
 
 if __name__ == "__main__":
-    print("🚀 MOTOR PORCO (ARCH VERSION) ATIVO")
+    print("🚀 MOTOR PORCO (MINT VERSION) ATIVO")
     while True:
         if not play_next():
             time.sleep(1)

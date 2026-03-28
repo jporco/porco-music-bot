@@ -1,0 +1,15 @@
+[Unit]
+Description=Porco Music Bot (Linux Mint headless mpv engine)
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 %h/porco-music-bot/engine.py
+Restart=always
+RestartSec=5
+StandardOutput=append:%h/porco-music-bot/bot.log
+StandardError=inherit
+Environment="PATH=/usr/local/bin:/usr/bin:/bin"
+
+[Install]
+WantedBy=default.target

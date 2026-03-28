@@ -1,73 +1,45 @@
 #!/bin/bash
 
 # --- CONFIGURAÇÃO ---
+REPO_URL="http://gitea.cominformatica/lua.jesus/porco-music-bot-tea.git"
 INSTALL_DIR="$HOME/porco-music-bot"
 
-echo -e "\e[1;35m"
-echo "  🐷 PORCO MUSIC BOT - INSTALADOR MULTI-DISTRO (v2.0)"
-echo -e "\e[0m"
+echo "🐷 Iniciando Instalação do Porco Music Bot (Mint Edition)..."
 
-echo "Escolha sua distribuição:"
-echo "1) Linux Mint / Ubuntu / Debian"
-echo "2) Arch Linux / Manjaro / Endeavour"
-read -p "Opção: " DISTRO
+# 1. Atualizando sistema e instalando bases
+echo "📦 Instalando dependências do sistema..."
+sudo apt update -y
+sudo apt install python3 python3-pip mpv socat git -y
 
-if [ "$DISTRO" == "1" ]; then
-    echo "📦 [MINT] Instalando dependências..."
-    sudo apt update -y
-    sudo apt install python3 python3-pip mpv socat git fzf -y
-    sudo python3 -m pip install -U yt-dlp
-    
-    DISTRO_NAME="Mint"
+# 2. Instalando yt-dlp via PIP (sempre a versão mais nova)
+echo "🎥 Instalando yt-dlp..."
+sudo python3 -m pip install -U yt-dlp
 
-elif [ "$DISTRO" == "2" ]; then
-    echo "📦 [ARCH] Instalando dependências..."
-    sudo pacman -Syu yt-dlp mpv socat git python-requests fzf --noconfirm
-    
-    DISTRO_NAME="Arch"
-    
-    # Sincroniza arquivos da pasta arch-edition para a raiz
-    echo "🔄 Aplicando otimizações para Arch Linux..."
-    cp "$INSTALL_DIR/arch-edition/"* "$INSTALL_DIR/"
-else
-    echo "❌ Opção inválida. Saindo..."
-    exit 1
+# 3. Configurando atalhos no .bashrc
+echo "📝 Configurando ambiente do usuário..."
+if ! grep -q "porco-music-bot/funcoes.sh" ~/.bashrc; then
+    echo -e "\n# Porco Music Bot\nsource $INSTALL_DIR/funcoes.sh" >> ~/.bashrc
+    echo "✅ Funções adicionadas ao .bashrc"
 fi
 
-# --- CONFIGURAÇÃO DE AMBIENTE ---
-
-setup_shell_config() {
-    local CONFIG_FILE=$1
-    if [ -f "$CONFIG_FILE" ]; then
-        if ! grep -q "porco-music-bot/funcoes.sh" "$CONFIG_FILE"; then
-            echo -e "\n# Porco Music Bot\nsource $INSTALL_DIR/funcoes.sh" >> "$CONFIG_FILE"
-            echo "✅ Funções adicionadas ao $CONFIG_FILE"
-        fi
-    fi
-}
-
-echo "📝 Configurando ambiente do usuário..."
-setup_shell_config "$HOME/.bashrc"
-setup_shell_config "$HOME/.zshrc"
-
-# --- LINKS GLOBAIS ---
-# Removemos links antigos que causavam conflitos (ex: tocando como script)
-sudo rm -f /usr/local/bin/tocando
-sudo rm -f /usr/local/bin/porco-help
-
+# 4. Criando links globais no sistema
 echo "🔗 Criando links em /usr/local/bin..."
-sudo ln -sf "$INSTALL_DIR/engine.py" /usr/local/bin/acordar-porco
-sudo ln -sf "$INSTALL_DIR/play.py" /usr/local/bin/play
-sudo ln -sf "$INSTALL_DIR/volume.py" /usr/local/bin/volume
+sudo ln -sf $INSTALL_DIR/engine.py /usr/local/bin/acordar-porco
+sudo ln -sf $INSTALL_DIR/play.py /usr/local/bin/play
+sudo ln -sf $INSTALL_DIR/volume.py /usr/local/bin/volume
 
-# --- PERMISSÕES ---
-chmod +x "$INSTALL_DIR"/*.py
-chmod +x "$INSTALL_DIR"/*.sh
+# 4.b Configurando Serviço Systemd para auto-inicialização no boot e persistência SSH
+echo "⚙️ Configurando serviço autostart do Systemd (O porco nunca dorme!)..."
+mkdir -p $HOME/.config/systemd/user/
+cp $INSTALL_DIR/porco.service $HOME/.config/systemd/user/
+systemctl --user daemon-reload
+systemctl --user enable --now porco.service
+echo "⚠️ Habilitando 'linger' para que o bot inicie no boot (pode pedir senha sudo)..."
+sudo loginctl enable-linger $USER
 
-echo -e "\e[1;32m"
-echo "✨ Instalação Concluída ($DISTRO_NAME Edition)!"
-echo "--------------------------------------------------"
-echo "👉 IMPORTANTE: Reinicie seu terminal ou rode 'source ~/.zshrc' (ou .bashrc)"
-echo "👉 Depois, rode 'acordar-porco' para iniciar o motor."
-echo "👉 Digite 'ajuda' para ver os novos comandos modernos!"
-echo -e "\e[0m"
+# 5. Permissões de execução
+chmod +x $INSTALL_DIR/*.py
+chmod +x $INSTALL_DIR/*.sh
+
+echo "✨ Instalação Concluída!"
+echo "👉 Rode 'source ~/.bashrc' ou abra outro terminal e digite 'acordar-porco' para ativar e limpar arquivos mortos."

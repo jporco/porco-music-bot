@@ -1,37 +1,26 @@
 #!/bin/bash
-
 # --- CONFIGURAÇÃO ---
 BASE_DIR="$HOME/porco-music-bot"
-SOCKET_PATH="/tmp/porco_mpv.sock"
+SOCKET_PATH="/tmp/porco.sock"
 QUEUE_FILE="$BASE_DIR/queue.txt"
 RADIO_FILE="$BASE_DIR/radio-atual.txt"
+VOL_FILE="$BASE_DIR/volume-atual.txt"
 
 # --- MOTOR ---
-function acordar-porco {
-    # Check for dependencies
-    for cmd in socat python3 mpv yt-dlp fzf; do
-        if ! command -v $cmd &> /dev/null; then
-            echo -e "\e[1;31m⚠️ ERRO: '$cmd' não encontrado!\e[0m"
-            echo -e "\e[1;33mInstale as dependências com: sudo pacman -S yt-dlp mpv socat fzf\e[0m"
-            return 1
-        fi
-    done
+acordar-porco() {
+    echo "🐷 Acordando o porco em porco-music-bot (Systemd)..."
+    systemctl --user restart porco.service
+    sleep 1
+    echo "✅ O porco está de pé e rodando em background absoluto!"
+}
 
-    echo -e "\e[1;35m🐷 Acordando o porco...\e[0m"
-    
-    # Mata processos antigos sem travar
-    pkill -9 -f "engine.py" >/dev/null 2>&1 || true
-    pkill -9 mpv >/dev/null 2>&1 || true
-    
-    # Limpa arquivos temporários (GARANTE QUE O SOCKET NÃO É UM ARQUIVO COMUM)
+function porco-stop {
+    echo "🛑 Parando o Porco Music Bot..."
+    systemctl --user stop porco.service >/dev/null 2>&1
+    pkill -9 mpv >/dev/null 2>&1
+    > "$QUEUE_FILE"
     rm -f "$SOCKET_PATH" "$RADIO_FILE"
-    touch "$QUEUE_FILE"
-
-    # Inicia o motor desvinculado do terminal
-    python3 "$BASE_DIR/engine.py" </dev/null >"$BASE_DIR/bot.log" 2>&1 & 
-    disown %python3 2>/dev/null || disown $! 2>/dev/null
-    
-    echo -e "\e[1;32m✅ O chiqueiro está aberto!\e[0m"
+    echo "✅ Bot parado e fila limpa. Use 'acordar-porco' para ligar novamente."
 }
 
 # --- COMANDOS DE REPRODUÇÃO ---
@@ -48,108 +37,61 @@ function play-radio-genero {
 }
 
 function proxima {
-    # Mata o mpv atual para o motor carregar a próxima
-    [ -S "$SOCKET_PATH" ] && echo '{"command":["quit"]}' | socat - "$SOCKET_PATH" >/dev/null 2>&1
-    echo -e "\e[1;34m⏭️  Pulei! Próxima música chegando...\e[0m"
+    echo '{"command":["quit"]}' | socat - "$SOCKET_PATH" >/dev/null 2>&1
+    echo "⏭️ Pulando para a próxima música da fila..."
 }
 
-function volume {
-    if [ ! -S "$SOCKET_PATH" ]; then
-        echo -e "\e[1;31m⚠️  Motor desligado ou MPV não iniciado.\e[0m"
-        return
-    fi
-    
-    local VOL_ATUAL=$(echo '{"command":["get_property","volume"]}' | socat - "$SOCKET_PATH" 2>/dev/null | grep -oP '"data":\K[0-9.]+' | cut -d. -f1)
-    : ${VOL_ATUAL:=50}
-
-    local NOVO_VOL=$1
-
-    if [[ "$1" == "+" ]]; then
-        NOVO_VOL=$((VOL_ATUAL + 10))
-    elif [[ "$1" == "-" ]]; then
-        NOVO_VOL=$((VOL_ATUAL - 10))
-    elif [[ -z "$1" ]]; then
-        echo -e "\e[1;33m📢 Volume: $VOL_ATUAL%\e[0m"
-        return
-    fi
-
-    [ "$NOVO_VOL" -gt 100 ] && NOVO_VOL=100
-    [ "$NOVO_VOL" -lt 0 ] && NOVO_VOL=0
-
-    echo "{\"command\":[\"set_property\",\"volume\",$NOVO_VOL]}" | socat - "$SOCKET_PATH" >/dev/null 2>&1
-    echo -e "\e[1;32m📢 Volume ajustado: $NOVO_VOL%\e[0m"
-}
-
-# --- STATUS MODERNO ---
-function tocando {
-    # 1. Verifica se o socket existe
-    if [ ! -S "$SOCKET_PATH" ]; then
-        if [ -f "$RADIO_FILE" ]; then
-            local R_TITLE=$(cat "$RADIO_FILE" 2>/dev/null)
-            echo -e "\n\e[1;35m🎵 SINTONIZANDO:\e[0m"
-            echo -e "\e[1;36m${R_TITLE:-Desconhecido}\e[0m"
-            echo -e "\e[1;33m🛰️  Resolvendo link seguro... (quase lá)\e[0m\n"
-        else
-            echo -e "\e[1;31m⚠️  Nada tocando agora.\e[0m"
-        fi
-        return
-    fi
-
-    # 2. Pega metadados via socket (usa "=" para compatibilidade total)
-    local T=$(echo '{"command":["get_property","media-title"]}' | socat - "$SOCKET_PATH" 2>/dev/null | grep -oP '"data":"\K[^"]+')
-    [ -z "$T" ] || [ "$T" = "null" ] && T=$(echo '{"command":["get_property","metadata/by-key/icy-title"]}' | socat - "$SOCKET_PATH" 2>/dev/null | grep -oP '"data":"\K[^"]+')
-    
-    if [ -z "$T" ] || [ "$T" = "null" ]; then
-        echo -e "\e[1;31m⚠️  Sintonizando metadados...\e[0m"
-        return
-    fi
-
-    # 3. Pega progresso e garante valores numéricos
-    local P_RAW=$(echo '{"command":["get_property","time-pos"]}' | socat - "$SOCKET_PATH" 2>/dev/null | grep -oP '"data":\K[0-9.]+' | cut -d. -f1)
-    local D_RAW=$(echo '{"command":["get_property","duration"]}' | socat - "$SOCKET_PATH" 2>/dev/null | grep -oP '"data":\K[0-9.]+' | cut -d. -f1)
-    
-    local POS=${P_RAW:-0}
-    local DUR=${D_RAW:-0}
-    local PER=0
-
-    if [ "$DUR" -gt 0 ] 2>/dev/null; then
-        PER=$((100 * POS / DUR))
-    fi
-
-    # 4. Gera a barra de progresso (Loop compatível com todos os shells)
-    local BAR_SIZE=20
-    local FILLED=$((BAR_SIZE * PER / 100))
-    local EMPTY=$((BAR_SIZE - FILLED))
-    local BAR=""
-    # Preenche a barra
-    local i=0
-    while [ $i -lt $FILLED ]; do BAR="${BAR}█"; i=$((i+1)); done
-    i=0
-    while [ $i -lt $EMPTY ]; do BAR="${BAR}░"; i=$((i+1)); done
-
-    echo -e "\n\e[1;35m🎵 TOCANDO AGORA:\e[0m"
-    echo -e "\e[1;37m$T\e[0m"
-    
-    if [ "$DUR" -gt 0 ] 2>/dev/null; then
-        printf "\e[1;32m%02d:%02d\e[0m [%s] \e[1;32m%02d:%02d\e[0m (%d%%)\n" $((POS/60)) $((POS%60)) "$BAR" $((DUR/60)) $((DUR%60)) "$PER"
-    else
-        printf "\e[1;34m📻 No ar há: %02d:%02d:%02d\e[0m [LIVE]\n" $((POS/3600)) $(((POS%3600)/60)) $((POS%60))
-    fi
-    echo ""
-}
-
+# --- STATUS E EXIBIÇÃO ---
 function fila {
-    echo -e "\e[1;35m📋 PRÓXIMAS NA FILA:\e[0m"
-    if [ -s "$QUEUE_FILE" ]; then
-        head -n 10 "$QUEUE_FILE" | nl -w2 -s'. '
-        local TOTAL=$(wc -l < "$QUEUE_FILE")
-        [ "$TOTAL" -gt 10 ] && echo "... e mais $((TOTAL-10)) músicas."
-    else
-        echo "📭 Fila vazia."
+    local ROSA="\033[38;5;211m"; local CIANO="\033[36m"; local AMARELO="\033[33m"; local RESET="\033[0m"
+    local SOCKET="/tmp/porco.sock"
+    local TOCANDO=$(echo '{"command":["get_property","media-title"]}' | socat - "$SOCKET" 2>/dev/null | grep -oP '"data":"\K[^"]+')
+    if [ -z "$TOCANDO" ]; then
+        [ -f "$RADIO_FILE" ] && TOCANDO="$(cat "$RADIO_FILE")" || TOCANDO="(Silêncio ou carregando...)"
     fi
+    echo -e "${ROSA}┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓${RESET}"
+    echo -e "${ROSA}┃${RESET}  🎧 ${AMARELO}${TOCANDO:0:55}${RESET}"
+    local POS=$(echo '{ "command": ["get_property", "time-pos"] }' | socat - "$SOCKET" 2>/dev/null | grep -oP '(?<="data":)[0-9.]+' | cut -d. -f1)
+    local DUR=$(echo '{ "command": ["get_property", "duration"] }' | socat - "$SOCKET" 2>/dev/null | grep -oP '(?<="data":)[0-9.]+' | cut -d. -f1)
+    if [ -n "$POS" ] && [ -n "$DUR" ] && [ "$DUR" -gt 0 ]; then
+        local PERCENT=$(( POS * 100 / DUR )); local BARRA_LEN=$((PERCENT/5))
+        local BARRA=$(printf "%${BARRA_LEN}s" | tr ' ' '#'); local RESTO_LEN=$((20-BARRA_LEN))
+        local RESTO=$(printf "%${RESTO_LEN}s" | tr ' ' '-'); local M_POS=$((POS/60)); local S_POS=$((POS%60))
+        local M_DUR=$((DUR/60)); local S_DUR=$((DUR%60))
+        echo -e "${ROSA}┃${RESET}  ${CIANO}[${BARRA}${RESTO}] ${PERCENT}% | $(printf "%02d:%02d" $M_POS $S_POS)/$(printf "%02d:%02d" $M_DUR $S_DUR)${RESET}"
+    else
+        echo -e "${ROSA}┃${RESET}  ${CIANO}[--------------------] 0%${RESET}"
+    fi
+    echo -e "${ROSA}┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫${RESET}"
+    echo -e "${ROSA}┃${RESET}  📋 FILA PRÓXIMAS:"
+    if [ -s "$QUEUE_FILE" ]; then
+        grep "|" "$QUEUE_FILE" | head -n 5 | while read -r linha; do
+            local TITULO=$(echo "$linha" | cut -d'|' -f1)
+            echo -e "${ROSA}┃${RESET}  - ${TITULO:0:55}"
+        done
+    else
+        echo -e "${ROSA}┃${RESET}  (Vazia - Use 'play' para adicionar)"
+    fi
+    echo -e "${ROSA}┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛${RESET}"
 }
 
-function ajuda {
+function tocando-radio {
+    [ ! -S "$SOCKET_PATH" ] && { echo "⚠️ Off"; return; }
+    echo -e "\n📻 --- STATUS DA RÁDIO ---"
+    if [ -f "$RADIO_FILE" ]; then
+        echo "📡 Estação: $(cat "$RADIO_FILE")"
+    else
+        echo "📡 Estação: Sintonizando..."
+    fi
+    local C_RAW=$(echo '{"command":["get_property","time-pos"]}' | socat - "$SOCKET_PATH" 2>/dev/null | grep -oP '"data":\K[0-9.]+')
+    if [ ! -z "$C_RAW" ]; then
+        local C=$(echo "$C_RAW" | cut -d. -f1)
+        printf "⏱️ No ar há: %02d:%02d:%02d\n" $((C/3600)) $(((C%3600)/60)) $((C%60))
+    fi
+    echo -e "---------------------------\n"
+}
+
+function porco-help {
     echo -e "\e[1;35m"
     echo "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣀⣤⣤⣶⣶⣶⣶⣦⣤⣄⣀⠀⠀⠀⠀⠀⠀⠀⠀⠀"
     echo "⠀⠀⢀⡶⢻⡦⢀⣠⣶⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡟⢀⣴⣾⡿⠀⣠⠀⠀"
@@ -161,65 +103,68 @@ function ajuda {
     echo "⠀⠀⠀⠀⠀⢻⣿⣿⠀⠀⢸⣿⡇⠀⠀⠀⠀⠀⢻⣿⠃⠸⣿⡇⠀⠀⠀⠀⠀⠀"
     echo "⠀⠀⠀⠀⠀⠈⠿⠇⠀⠀⠀⠻⠇⠀⠀⠀⠀⠀⠈⠿⠀⠀⠻⠿⠀⠀⠀⠀⠀⠀"
     echo -e "\e[0m"
-    echo -e "--- \e[1;33mPORCO MUSIC BOT (ARCH)\e[0m ---"
-    echo -e "  \e[1;32macordar-porco\e[0m  | Inicia o motor"
-    echo -e "  \e[1;32mplay [busca]\e[0m    | Busca (Interativo com FZF)"
-    echo -e "  \e[1;32mtocando\e[0m         | Mostra progresso e título"
-    echo -e "  \e[1;32mfila\e[0m            | Mostra próximas músicas"
-    echo -e "  \e[1;32mproxima\e[0m         | Pula para a próxima"
-    echo -e "  \e[1;32mvolume [0-100]\e[0m  | Ajusta som"
-    echo -e "  \e[1;32mplay-radio\e[0m      | [busca/genero] Rádios online"
-    echo -e "  \e[1;32mwipe\e[0m            | Limpa tudo e reinicia"
-    echo -e "  \e[1;32majuda\e[0m           | Esta tela"
+    echo -e "--- \e[1;33mPORCO MUSIC BOT (MINT)\e[0m ---"
+    echo -e "  \e[1;32macordar-porco\e[0m | \e[1;32mporco-stop\e[0m"
+    echo -e "  \e[1;32mplay [busca]\e[0m | \e[1;32mfila\e[0m"
+    echo -e "  \e[1;32mplay-radio-busca\e[0m | \e[1;32mtocando-radio\e[0m"
+    echo -e "  \e[1;32mvolume [+ / - / 0-100]\e[0m | \e[1;32mproxima\e[0m"
+    echo -e "  \e[1;32mwipe\e[0m | \e[1;32mupdate-git\e[0m | \e[1;32mupdate-interno\e[0m"
+    echo -e "  \e[1;32mporco-help\e[0m"
 }
 
-# --- ALIASES ---
-alias porco-help="ajuda"
-alias status="tocando"
-alias next="proxima"
+function volume {
+    local VOL_FILE="$BASE_DIR/volume-atual.txt"; local SOCKET_PATH="/tmp/porco.sock"
+    local VOL_ATUAL=$(cat "$VOL_FILE" 2>/dev/null); : ${VOL_ATUAL:=80}
+    local NOVO_VOL=$1
+    if [[ "$1" == "+" ]]; then NOVO_VOL=$((VOL_ATUAL + 5))
+    elif [[ "$1" == "-" ]]; then NOVO_VOL=$((VOL_ATUAL - 5))
+    elif [[ -z "$1" ]]; then echo "📢 Volume Sincronizado: $VOL_ATUAL%"; return 0; fi
+    [ "$NOVO_VOL" -gt 100 ] && NOVO_VOL=100; [ "$NOVO_VOL" -lt 0 ] && NOVO_VOL=0
+    echo "$NOVO_VOL" > "$VOL_FILE"
+    if [ -S "$SOCKET_PATH" ]; then echo "{\"command\":[\"set_property\",\"volume\",$NOVO_VOL]}" | socat - "$SOCKET_PATH" >/dev/null 2>&1; fi
+    pactl set-sink-volume @DEFAULT_SINK@ "${NOVO_VOL}%" >/dev/null 2>&1
+    echo 192168 | sudo -S amixer -c 0 set Master "${NOVO_VOL}%" >/dev/null 2>&1
+    echo 192168 | sudo -S amixer -c 0 set PCM "${NOVO_VOL}%" >/dev/null 2>&1
+    echo "📢 Sincronizado: $NOVO_VOL% (Hardware + Sistema + Bot)"
+}
 
 # --- MANUTENÇÃO ---
-function update-git {
-    echo -e "\e[1;34m📤 Sincronizando repositórios...\e[0m"
+function update-interno {
+    echo "🏠 Sincronizando com Gitea Interno..."
     cd "$BASE_DIR"
-    
-    # Adicionamos tudo (incluso novos arquivos como o 'subprocess' que o git detectou)
     git add -A
-    
-    local MSG="${*:-Update Geral $(date +'%d/%m/%Y %H:%M')}"
-    if git commit -m "$MSG"; then
-        echo -e "\e[1;32m✅ Mudanças commitadas localmente.\e[0m"
-    else
-        echo -e "\e[1;33mℹ️  Nada novo para commitar.\e[0m"
-    fi
+    local MSG="${*:-Sync Interno $(date +'%d/%m/%Y %H:%M')}"
+    git commit -m "$MSG" >/dev/null 2>&1
+    git push origin main
+    git push interno main
+    echo "✅ Sincronização Interna concluída!"
+}
 
-    # Tenta empurrar para os remotes que existirem
-    for remote in $(git remote); do
-        echo -e "\e[1;34m🏠 Enviando para $remote...\e[0m"
-        if git push "$remote" main; then
-            echo -e "\e[1;32m✅ Sucesso em $remote!\e[0m"
-        else
-            echo -e "\e[1;31m❌ Falha em $remote. Verifique suas credenciais/token.\e[0m"
-        fi
-    done
-    
-    echo -e "\e[1;32m✨ Processo de sincronização finalizado.\e[0m"
+function update-git {
+    echo "🌐 Sincronizando com GitHub..."
+    cd "$BASE_DIR"
+    git add -A
+    local MSG="${*:-Sync Geral $(date +'%d/%m/%Y %H:%M')}"
+    git commit -m "$MSG" >/dev/null 2>&1
+    git push github main
+    echo "🏠 Chamando Sync Interno..."
+    update-interno "$MSG"
+    echo "✨ Sincronização Geral (GitHub + Gitea) concluída!"
 }
 
 function update-geral {
-    echo -e "\e[1;35m🐷 Atualização Geral (Arch Edition)...\e[0m"
-    sudo pacman -Syu yt-dlp mpv socat fzf --noconfirm
-    update-git "Update Geral via $(hostname) [Arch]"
+    echo "🐷 Atualização Geral do Porco..."
+    if [ -f /etc/arch-release ]; then sudo pacman -Syu yt-dlp mpv socat --noconfirm
+    else sudo apt update && sudo apt install yt-dlp mpv socat -y; fi
+    update-git "Update Geral via $(hostname)"
 }
 
 function wipe {
-    echo -e "\e[1;31m🧹 WIPE: Limpando tudo e atualizando comandos...\e[0m"
-    # Remove e recria a fila para garantir que não há travas
-    rm -f "$QUEUE_FILE"
-    
-    # AUTO-ATUALIZAÇÃO: Recarrega as funções para o usuário
-    source "$BASE_DIR/funcoes.sh" 2>/dev/null
-    
+    echo "🧹 WIPE: Faxina total iniciada..."
+    pkill -9 -f engine.py >/dev/null 2>&1
+    pkill -9 mpv >/dev/null 2>&1
+    > "$QUEUE_FILE"
+    rm -f "$SOCKET_PATH" "$RADIO_FILE"
     acordar-porco
-    echo -e "\e[1;32m✨ Comandos atualizados e motor reiniciado!\e[0m"
+    echo "🚀 Bot reiniciado e limpo!"
 }
