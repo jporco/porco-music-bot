@@ -1,5 +1,3 @@
 *.log
-queue.txt
-historico.txt
 __pycache__/
 .DS_Store
