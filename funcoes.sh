@@ -36,6 +36,18 @@ function play-radio-genero {
     python3 "$BASE_DIR/play-radio-genero.py" "$*"
 }
 
+function play-radio-busca-favoritos {
+    python3 "$BASE_DIR/play-radio-busca-favoritos.py" "$*"
+}
+
+function play-radio-favoritos {
+    python3 "$BASE_DIR/play-radio-favoritos.py" "$*"
+}
+
+function play-radio-ultimaradio {
+    python3 "$BASE_DIR/play-radio-ultimaradio.py" "$*"
+}
+
 function proxima {
     echo '{"command":["quit"]}' | socat - "$SOCKET_PATH" >/dev/null 2>&1
     echo "⏭️ Pulando para a próxima música da fila..."
@@ -104,13 +116,28 @@ function porco-help {
     echo "⠀⠀⠀⠀⠀⠈⠿⠇⠀⠀⠀⠻⠇⠀⠀⠀⠀⠀⠈⠿⠀⠀⠻⠿⠀⠀⠀⠀⠀⠀"
     echo -e "\e[0m"
     echo -e "--- \e[1;33mPORCO MUSIC BOT (MINT)\e[0m ---"
-    echo -e "  \e[1;32macordar-porco\e[0m | \e[1;32mporco-stop\e[0m"
-    echo -e "  \e[1;32mplay [busca]\e[0m | \e[1;32mfila\e[0m"
-    echo -e "  \e[1;32mplay-radio-busca\e[0m | \e[1;32mtocando-radio\e[0m"
-    echo -e "  \e[1;32mvolume [+ / - / 0-100]\e[0m | \e[1;32mproxima\e[0m"
-    echo -e "  \e[1;32mwipe\e[0m | \e[1;32mupdate-git\e[0m | \e[1;32mupdate-interno\e[0m"
+    echo -e "  \e[1;36mMOTOR\e[0m"
+    echo -e "  \e[1;32macordar-porco\e[0m | \e[1;32mporco-stop\e[0m | \e[1;32mwipe\e[0m"
+    echo -e ""
+    echo -e "  \e[1;36mMÚSICA\e[0m"
+    echo -e "  \e[1;32mplay [busca]\e[0m | \e[1;32mproxima\e[0m | \e[1;32mfila\e[0m"
+    echo -e ""
+    echo -e "  \e[1;36mRÁDIO\e[0m"
+    echo -e "  \e[1;32mplay-radio-busca [nome]\e[0m"
+    echo -e "  \e[1;32mplay-radio-genero [genero]\e[0m"
+    echo -e "  \e[1;32mplay-radio-busca-favoritos [nome]\e[0m"
+    echo -e "  \e[1;32mplay-radio-favoritos\e[0m  (número=toca | r N=remove)"
+    echo -e "  \e[1;32mplay-radio-ultimaradio\e[0m | \e[1;32mtocando-radio\e[0m"
+    echo -e ""
+    echo -e "  \e[1;36mÁUDIO\e[0m"
+    echo -e "  \e[1;32mvolume [+ / - / 0-100]\e[0m"
+    echo -e ""
+    echo -e "  \e[1;36mSINCRONIZAÇÃO\e[0m"
+    echo -e "  \e[1;32mupdate-git [msg]\e[0m | \e[1;32mupdate-interno [msg]\e[0m | \e[1;32mupdate-geral\e[0m"
+    echo -e ""
     echo -e "  \e[1;32mporco-help\e[0m"
 }
+
 
 function volume {
     local VOL_FILE="$BASE_DIR/volume-atual.txt"; local SOCKET_PATH="/tmp/porco.sock"

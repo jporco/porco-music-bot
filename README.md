@@ -5,7 +5,10 @@ Bot de música otimizado para **Linux Mint / Debian**.
 ## 🛠️ Comandos Principais
 - `acordar-porco`: Inicia o motor do bot.
 - `play [busca]`: Busca e toca músicas do YouTube.
-- `play-radio-busca [nome]`: Busca rádios com paginação (`m` para mais, `v` para voltar).
+- `play-radio-busca [nome]`: Busca rádios por nome e toca na seleção.
+- `play-radio-busca-favoritos [nome]`: Busca rádios por nome e salva a selecionada nos favoritos.
+- `play-radio-favoritos`: Lista favoritos com paginação, opção de remover (`r N`) e tocar por número.
+- `play-radio-ultimaradio`: Toca a última rádio selecionada no bot.
 - `volume [0-100]`: Ajusta o volume via socket IPC.
 - `wipe`: Faxina total (para tudo, limpa fila e reinicia).
 - `tocando`: Mostra a barra de progresso da música atual.
