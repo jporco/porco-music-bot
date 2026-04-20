@@ -14,6 +14,14 @@ Bot de música otimizado para **Linux Mint / Debian**.
 - `tocando`: Mostra a barra de progresso da música atual.
 - `update-interno`: Sincroniza o código com o Gitea e atualiza os comandos do sistema.
 
+## ⚠️ YouTube / HTTP 429
+
+Se o `play` adicionar músicas na fila, mas **não sair som** (enquanto rádio funciona), costuma ser **limite do YouTube no IP** (HTTP 429).
+
+1. Exporte cookies do navegador no formato **Netscape**.
+2. Salve em `~/porco-music-bot/youtube-cookies.txt`
+3. Rode: `systemctl --user restart porco.service`
+
 ## 📁 Estrutura
 - **Pasta oficial:** `~/porco-music-bot`
 - **Socket:** `/tmp/porco.sock`
