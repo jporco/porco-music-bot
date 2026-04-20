@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 import os
+import re
+import shutil
 import subprocess
 import time
 
@@ -8,6 +10,16 @@ QUEUE_FILE = os.path.join(BASE_DIR, "queue.txt")
 VOL_FILE = os.path.join(BASE_DIR, "volume-atual.txt")
 COOKIES_FILE = os.path.join(BASE_DIR, "youtube-cookies.txt")
 SOCKET_PATH = "/tmp/porco.sock"
+
+YTDLP = shutil.which("yt-dlp") or "/usr/local/bin/yt-dlp"
+
+YOUTUBE_CLIENTS = (
+    "android",
+    "web",
+    "web_embedded",
+    "mweb",
+    "tv_embedded",
+)
 
 
 def get_last_volume():
@@ -31,18 +43,93 @@ def extract_stream_url(line):
     return line.rsplit("|", 1)[-1].strip()
 
 
-def build_mpv_command(url, vol):
-    cmd = [
-        "mpv",
-        "--no-video",
-        "--ytdl-format=bestaudio/best",
-        "--no-terminal",
-        f"--input-ipc-server={SOCKET_PATH}",
-        f"--volume={vol}",
-    ]
+def is_youtube_page(url):
+    u = url.lower()
+    return "youtube.com/" in u or "youtu.be/" in u
+
+
+def sanitize_title(text):
+    text = re.sub(r"[\x00-\x1f\x7f]", "", text)
+    return text[:160]
+
+
+def yt_dlp_base_cmd():
+    cmd = [YTDLP]
     if os.path.isfile(COOKIES_FILE):
-        cmd.append(f"--ytdl-raw-options=cookies={COOKIES_FILE}")
-    cmd.append(url)
+        cmd.extend(["--cookies", COOKIES_FILE])
+    cmd.extend(
+        [
+            "--no-warnings",
+            "--no-check-certificates",
+            "-f",
+            "ba/bestaudio/best",
+            "-g",
+        ]
+    )
+    return cmd
+
+
+def yt_dlp_resolve_direct_stream(page_url):
+    last_err = ""
+
+    for client in YOUTUBE_CLIENTS:
+        cmd = yt_dlp_base_cmd() + ["--extractor-args", f"youtube:player_client={client}", page_url]
+        try:
+            r = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=180,
+                check=False,
+            )
+            out = (r.stdout or "").strip().splitlines()
+            cand = out[0].strip() if out else ""
+            if cand.startswith("http"):
+                return cand, None
+            last_err = (r.stderr or "")[-500:] or "yt-dlp: sem URL"
+        except subprocess.TimeoutExpired:
+            last_err = "yt-dlp: timeout ao resolver stream"
+        except Exception as exc:
+            last_err = str(exc)
+
+    cmd = yt_dlp_base_cmd() + [page_url]
+    try:
+        r = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=180,
+            check=False,
+        )
+        out = (r.stdout or "").strip().splitlines()
+        cand = out[0].strip() if out else ""
+        if cand.startswith("http"):
+            return cand, None
+        last_err = (r.stderr or "")[-500:] or last_err
+    except Exception as exc:
+        last_err = str(exc)
+
+    return None, last_err
+
+
+def build_mpv_command(play_url, vol, media_title, use_ytdl_hook):
+    cmd = ["mpv", "--no-video"]
+    if use_ytdl_hook:
+        cmd.append("--ytdl-format=bestaudio/best")
+        if os.path.isfile(COOKIES_FILE):
+            cmd.append(f"--ytdl-raw-options=cookies={COOKIES_FILE}")
+    else:
+        cmd.append("--no-ytdl")
+    cmd.append("--no-terminal")
+    if media_title:
+        cmd.append(f"--force-media-title={sanitize_title(media_title)}")
+    cmd.extend(
+        [
+            f"--input-ipc-server={SOCKET_PATH}",
+            f"--volume={vol}",
+            play_url,
+        ]
+    )
     return cmd
 
 
@@ -63,25 +150,46 @@ def play_next():
     print(f"🎶 Processando: {label}")
 
     if os.path.exists(SOCKET_PATH):
-        os.remove(SOCKET_PATH)
+        try:
+            os.remove(SOCKET_PATH)
+        except OSError:
+            pass
 
     vol = get_last_volume()
-    cmd = build_mpv_command(url, vol)
 
+    play_url = url
+    use_ytdl = False
+
+    if is_youtube_page(url):
+        stream, err = yt_dlp_resolve_direct_stream(url)
+        if stream:
+            play_url = stream
+            use_ytdl = False
+        else:
+            print(
+                "⚠️ Não consegui obter URL direta do YouTube via yt-dlp.\n"
+                f"Detalhe: {err if err else 'erro desconhecido'}\n"
+                "↩️ Tentando modo legado (mpv + hook do ytdl)..."
+            )
+            play_url = url
+            use_ytdl = True
+
+    cmd = build_mpv_command(play_url, vol, media_title=label, use_ytdl_hook=use_ytdl)
     proc = subprocess.run(cmd, stderr=subprocess.PIPE, text=True)
     err = proc.stderr or ""
 
     if proc.returncode != 0:
         if "429" in err or "Too Many Requests" in err:
             print(
-                "⚠️ YouTube limitou este IP (HTTP 429). Rádio segue ok porque não usa YouTube.\n"
-                f"💡 Solução: exporte cookies do navegador (Netscape) para:\n   {COOKIES_FILE}\n"
-                "   Depois: systemctl --user restart porco.service"
+                "⚠️ YouTube ainda retornou HTTP 429.\n"
+                "💡 Atualize o yt-dlp: sudo yt-dlp -U"
             )
         elif "Requested format is not available" in err:
-            print("⚠️ Formato de áudio indisponível; tente atualizar: sudo yt-dlp -U")
+            print("⚠️ Formato indisponível; rode: sudo yt-dlp -U")
         else:
-            print("⚠️ Falha ao tocar URL. Verifique yt-dlp/mpv e tente atualizar o bot.")
+            tail_err = [ln for ln in err.strip().splitlines() if ln.strip()][-3:]
+            if tail_err:
+                print("⚠️ Falha no mpv:\n" + "\n".join(tail_err))
 
     return True
 
