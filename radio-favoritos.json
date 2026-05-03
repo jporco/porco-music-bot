@@ -8,5 +8,60 @@
     "name": "Antena 1  - Porto Alegre",
     "url": "https://antenaone.crossradio.com.br/stream/1",
     "country": "BR"
+  },
+  {
+    "name": "Virgin Radio Hard Rock",
+    "url": "http://icy.unitedradio.it/VirginHardRock.mp3",
+    "country": "IT"
+  },
+  {
+    "name": "Hard Rock Heaven",
+    "url": "http://hydra.cdnstream.com/1521_128",
+    "country": "US"
+  },
+  {
+    "name": "89 A Radio Rock",
+    "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/RADIO_89FM_ADP.aac?dist=site-89fm",
+    "country": "BR"
+  },
+  {
+    "name": "Rock And Pop FM 95.9 (Rock & Pop) Ciudad de Buenos Aires",
+    "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/ROCKANDPOPAAC.aac",
+    "country": "AR"
+  },
+  {
+    "name": "Rock Antenne Heavy Metal",
+    "url": "https://mp3channels.webradio.rockantenne.de/heavy-metal",
+    "country": "DE"
+  },
+  {
+    "name": "Radio Paradise Rock Mix FLAC",
+    "url": "https://stream.radioparadise.com/rock-flac",
+    "country": "US"
+  },
+  {
+    "name": "Adroit Jazz Underground",
+    "url": "https://icecast.walmradio.com:8443/jazz",
+    "country": "US"
+  },
+  {
+    "name": "SomaFM Indie Pop Rocks! (128k AAC)",
+    "url": "https://ice6.somafm.com/indiepop-128-aac",
+    "country": "US"
+  },
+  {
+    "name": "ROCK FM",
+    "url": "http://nashe1.hostingradio.ru/rock-128.mp3",
+    "country": "RU"
+  },
+  {
+    "name": "RADIO BOB! BOBs Alternative Rock",
+    "url": "http://streams.radiobob.de/bob-alternative/mp3-192/streams.radiobob.de/",
+    "country": "DE"
+  },
+  {
+    "name": "Hunter FM - Pagode",
+    "url": "https://live.hunter.fm/pagode_normal",
+    "country": "BR"
   }
 ]
