@@ -24,3 +24,15 @@ Se ainda falhar, rode `sudo yt-dlp -U`. Opcional: `youtube-cookies.txt` (Netscap
 - **Pasta oficial:** `~/porco-music-bot`
 - **Socket:** `/tmp/porco.sock`
 - **Logs:** `~/porco-music-bot/bot.log`
+
+## 🐧 Arch / CachyOS (`arch-edition/`)
+
+A pasta **`arch-edition`** traz o mesmo comportamento da edição Mint (motor com `yt-dlp` multi-cliente, `play` com mix + cache, rádio com `radio_state`, `fila` / `tocando`, systemd user).
+
+```bash
+cd ~/porco-music-bot/arch-edition
+chmod +x instalar-arch.sh
+./instalar-arch.sh
+```
+
+O serviço usa `arch-edition/engine.py` e `arch-edition/porco.service`. Comandos no shell vêm de `arch-edition/funcoes.sh` (não altera a edição Mint na raiz do repo).

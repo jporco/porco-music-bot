@@ -1,34 +1,41 @@
 #!/bin/bash
+# Instalação Arch/CachyOS — mesmas capacidades que a edição Mint (motor, play com mix, rádio, systemd user).
 
-INSTALL_DIR="$HOME/porco-music-bot/arch-edition"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+INSTALL_DIR="$SCRIPT_DIR"
+BASE_DIR="$HOME/porco-music-bot"
 
-echo "🤖 Iniciando Instalação: Porco Music Bot (Arch Linux Edition)..."
+echo "🤖 Porco Music Bot — Arch edition (motor em arch-edition/, dados em ~/porco-music-bot)"
 
-# 1. Instalando dependências via Pacman
-echo "📦 Instalando pacotes do sistema (pacman)..."
-sudo pacman -Syu --needed mpv socat python-pip git --noconfirm
+echo "📦 Pacotes..."
+sudo pacman -Syu --needed mpv socat python python-pip git --noconfirm
+sudo pacman -S --needed yt-dlp --noconfirm
+sudo python -m pip install -U yt-dlp 2>/dev/null || sudo python3 -m pip install -U yt-dlp
 
-# 2. Instalando yt-dlp
-# No Arch, o ideal é instalar via pacman ou usar a flag de sistema se necessário
-echo "🎥 Instalando yt-dlp..."
-sudo pacman -S yt-dlp --noconfirm
+mkdir -p "$BASE_DIR"
 
-# 3. Configurando o .bashrc
-echo "📝 Configurando aliases no Arch..."
-if ! grep -q "arch-edition/funcoes.sh" ~/.bashrc; then
-    echo -e "\n# Porco Music Bot - Arch Edition\nsource $INSTALL_DIR/funcoes.sh" >> ~/.bashrc
-    echo "✅ Funções adicionadas ao .bashrc"
-fi
+echo "📝 source funcoes.sh (bash ou zsh)..."
+for rc in "$HOME/.bashrc" "$HOME/.zshrc"; do
+    [ -f "$rc" ] || continue
+    if ! grep -q "arch-edition/funcoes.sh" "$rc" 2>/dev/null; then
+        printf '\n# Porco Music Bot — Arch Edition\nsource %s/funcoes.sh\n' "$INSTALL_DIR" >> "$rc"
+        echo "✅ Incluído em $rc"
+    fi
+done
 
-# 4. Criando links globais
-echo "🔗 Criando links de comando..."
-sudo ln -sf $INSTALL_DIR/engine.py /usr/local/bin/acordar-porco
-sudo ln -sf $INSTALL_DIR/play.py /usr/local/bin/play
-sudo ln -sf $INSTALL_DIR/volume.py /usr/local/bin/volume
+echo "⚙️ systemd --user (porco.service)..."
+mkdir -p "$HOME/.config/systemd/user"
+cp "$INSTALL_DIR/porco.service" "$HOME/.config/systemd/user/porco.service"
+systemctl --user daemon-reload
+systemctl --user enable --now porco.service
+echo "⚠️ Para o motor sobreviver ao logout (opcional): sudo loginctl enable-linger $USER"
 
-# 5. Permissões
-chmod +x $INSTALL_DIR/*.py
-chmod +x $INSTALL_DIR/*.sh
+echo "🔗 /usr/local/bin..."
+sudo ln -sf "$INSTALL_DIR/engine.py" /usr/local/bin/acordar-porco
+sudo ln -sf "$INSTALL_DIR/play.py" /usr/local/bin/play
+sudo ln -sf "$INSTALL_DIR/volume.py" /usr/local/bin/volume
 
-echo "✨ Pronto! O Porco agora fala Arch (RTFM!)."
-echo "👉 Rode 'source ~/.bashrc' para ativar."
+chmod +x "$INSTALL_DIR"/*.py "$INSTALL_DIR"/*.sh 2>/dev/null
+
+echo "✨ Pronto. Abra um terminal novo ou: source ~/.bashrc (ou ~/.zshrc)"
+echo "👉 acordar-porco   |   porco-help"

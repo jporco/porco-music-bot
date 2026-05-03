@@ -3,10 +3,10 @@ import json
 import sys
 import urllib.request
 
-from radio_state import tune_station
+from radio_state import add_favorite
 
 
-def buscar_radio(termo):
+def buscar_e_favoritar(termo):
     try:
         url = (
             "https://de1.api.radio-browser.info/json/stations/byname/"
@@ -25,7 +25,7 @@ def buscar_radio(termo):
         total = len(all_stations)
 
         while True:
-            print(f"\n--- 📻 ESTAÇÕES: {termo.upper()} ({idx + 1} a {min(idx + passo, total)} de {total}) ---")
+            print(f"\n--- ⭐ FAVORITAR RÁDIO: {termo.upper()} ({idx + 1} a {min(idx + passo, total)} de {total}) ---")
             pagina = all_stations[idx: idx + passo]
             for i, station in enumerate(pagina, 1):
                 country = station.get("countrycode", "??")
@@ -34,7 +34,7 @@ def buscar_radio(termo):
             print("-" * 45)
             print("[0] Cancelar")
 
-            msg = "\n👉 Escolha o número"
+            msg = "\n👉 Escolha o número para FAVORITAR"
             if idx + passo < total:
                 msg += " | [m] Próxima"
             if idx > 0:
@@ -53,11 +53,8 @@ def buscar_radio(termo):
                 escolha = int(cmd)
                 if 1 <= escolha <= total:
                     selected = all_stations[escolha - 1]
-                    ok, message, item = tune_station(selected)
-                    if not ok:
-                        print(message)
-                    else:
-                        print(f"✅ Sintonizando AGORA: {item['name']}")
+                    _, message = add_favorite(selected)
+                    print(message)
                     break
     except Exception as e:
         print(f"❌ Erro na busca: {e}")
@@ -65,6 +62,6 @@ def buscar_radio(termo):
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
-        buscar_radio(" ".join(sys.argv[1:]))
+        buscar_e_favoritar(" ".join(sys.argv[1:]))
     else:
-        print("💡 Uso: play-radio-busca [nome]")
+        print("💡 Uso: play-radio-busca-favoritos [nome]")

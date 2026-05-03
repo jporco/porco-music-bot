@@ -6,18 +6,19 @@ import urllib.request
 from radio_state import tune_station
 
 
-def buscar_radio(termo):
+def buscar_por_genero(genero):
     try:
         url = (
-            "https://de1.api.radio-browser.info/json/stations/byname/"
-            f"{termo.replace(' ', '%20')}?order=votes&reverse=true&limit=100"
+            "https://de1.api.radio-browser.info/json/stations/bytag/"
+            f"{genero.replace(' ', '%20')}?order=votes&reverse=true&limit=50"
         )
+
         req = urllib.request.Request(url, headers={"User-Agent": "PorcoBot/1.0"})
         with urllib.request.urlopen(req) as response:
             all_stations = json.loads(response.read().decode())
 
         if not all_stations:
-            print(f"❌ Nenhuma rádio encontrada para: {termo}")
+            print(f"❌ Nenhuma rádio encontrada para o gênero: {genero}")
             return
 
         idx = 0
@@ -25,20 +26,20 @@ def buscar_radio(termo):
         total = len(all_stations)
 
         while True:
-            print(f"\n--- 📻 ESTAÇÕES: {termo.upper()} ({idx + 1} a {min(idx + passo, total)} de {total}) ---")
+            print(f"\n--- 🎷 GÊNERO: {genero.upper()} ({idx + 1} a {min(idx + passo, total)} de {total}) ---")
             pagina = all_stations[idx: idx + passo]
+
             for i, station in enumerate(pagina, 1):
-                country = station.get("countrycode", "??")
-                print(f"[{idx + i}] {station['name'][:50]} [{country}]")
+                tags = station.get("tags", "")[:30]
+                print(f"[{idx + i}] {station['name'][:40]} | {tags}...")
 
             print("-" * 45)
             print("[0] Cancelar")
-
             msg = "\n👉 Escolha o número"
             if idx + passo < total:
-                msg += " | [m] Próxima"
+                msg += " | [m] Mais"
             if idx > 0:
-                msg += " | [v] Anterior"
+                msg += " | [v] Voltar"
             msg += ": "
 
             cmd = input(msg).lower().strip()
@@ -57,7 +58,7 @@ def buscar_radio(termo):
                     if not ok:
                         print(message)
                     else:
-                        print(f"✅ Sintonizando AGORA: {item['name']}")
+                        print(f"✅ Tocando {genero}: {item['name']}")
                     break
     except Exception as e:
         print(f"❌ Erro na busca: {e}")
@@ -65,6 +66,6 @@ def buscar_radio(termo):
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
-        buscar_radio(" ".join(sys.argv[1:]))
+        buscar_por_genero(" ".join(sys.argv[1:]))
     else:
-        print("💡 Uso: play-radio-busca [nome]")
+        print("💡 Uso: play-radio-genero [rock, jazz, pop...]")
