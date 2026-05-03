@@ -3,3 +3,9 @@ __pycache__/
 .DS_Store
 youtube-cookies.txt
 play-cache.json
+
+# Credenciais / local — não enviar para o Git
+*.local
+.env
+.env.*
+youtube-cookies*.txt
