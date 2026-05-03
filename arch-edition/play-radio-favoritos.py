@@ -13,7 +13,7 @@ def listar_e_tocar_favoritos():
 
         if total == 0:
             print("📭 Nenhuma rádio favorita salva ainda.")
-            print("💡 Use: play-radio-busca-favoritos [nome]")
+            print("💡 Use: play-radio-busca-favoritos [nome]  (ou: favoritos após adicionar)")
             return
 
         if idx >= total:

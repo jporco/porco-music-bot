@@ -7,7 +7,7 @@ Bot de música otimizado para **Linux Mint / Debian**.
 - `play [busca]`: Coloca **1 resultado principal** na fila e até **5 sugestões** do Mix do YouTube (parecidas, até ~7min cada) — não repete 5× a mesma música da busca.
 - `play-radio-busca [nome]`: Busca rádios por nome e toca na seleção.
 - `play-radio-busca-favoritos [nome]`: Busca rádios por nome e salva a selecionada nos favoritos.
-- `play-radio-favoritos`: Lista favoritos com paginação, opção de remover (`r N`) e tocar por número.
+- `play-radio-favoritos` (atalho: **`favoritos`**): Lista favoritos com paginação, opção de remover (`r N`) e tocar por número.
 - `play-radio-ultimaradio`: Toca a última rádio selecionada no bot.
 - `volume [0-100]`: Ajusta o volume via socket IPC.
 - `wipe`: Faxina total (para tudo, limpa fila e reinicia).

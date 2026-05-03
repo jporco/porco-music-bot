@@ -44,6 +44,10 @@ function play-radio-favoritos {
     python3 "$BASE_DIR/play-radio-favoritos.py" "$*"
 }
 
+function favoritos {
+    python3 "$BASE_DIR/play-radio-favoritos.py" "$*"
+}
+
 function play-radio-ultimaradio {
     python3 "$BASE_DIR/play-radio-ultimaradio.py" "$*"
 }
@@ -126,7 +130,7 @@ function porco-help {
     echo -e "  \e[1;32mplay-radio-busca [nome]\e[0m"
     echo -e "  \e[1;32mplay-radio-genero [genero]\e[0m"
     echo -e "  \e[1;32mplay-radio-busca-favoritos [nome]\e[0m"
-    echo -e "  \e[1;32mplay-radio-favoritos\e[0m  (número=toca | r N=remove)"
+    echo -e "  \e[1;32mplay-radio-favoritos\e[0m | \e[1;32mfavoritos\e[0m  (atalho — número=toca | r N=remove)"
     echo -e "  \e[1;32mplay-radio-ultimaradio\e[0m | \e[1;32mtocando-radio\e[0m"
     echo -e ""
     echo -e "  \e[1;36mÁUDIO\e[0m"
