@@ -152,7 +152,9 @@ function porco-help {
     echo -e "  o motor resolve stream direto; se falhar: \e[1;32msudo yt-dlp -U\e[0m"
     echo -e "  opcional: \e[1;32m~/porco-music-bot/youtube-cookies.txt\e[0m + \e[1;32msystemctl --user restart porco.service\e[0m"
     echo -e ""
-    echo -e "  \e[1;32mupdate-git [msg]\e[0m | \e[1;32mupdate-interno [msg]\e[0m | \e[1;32mupdate-geral\e[0m"
+    echo -e "  \e[1;32mupdate-git [msg]\e[0m → só GitHub (fluxo típico no Arch)"
+    echo -e "  \e[1;32mupdate-interno [msg]\e[0m → Gitea, só se existir remote \e[1;36minterno\e[0m (no Mint usas isto + git)"
+    echo -e "  \e[1;32mupdate-geral\e[0m"
     echo -e ""
     echo -e "  \e[1;32mporco-help\e[0m"
 }
@@ -176,27 +178,29 @@ function volume {
 
 # --- MANUTENÇÃO ---
 function update-interno {
-    echo "🏠 Sincronizando com Gitea Interno..."
+    echo "🏠 Gitea interno (só se o remote existir neste clone)..."
     cd "$BASE_DIR"
     git add -A
     local MSG="${*:-Sync Interno $(date +'%d/%m/%Y %H:%M')}"
     git commit -m "$MSG" >/dev/null 2>&1
-    git push origin main
-    git push interno main
-    _porco_arch_links
-    echo "✅ Sincronização Interna concluída!"
+    if git config --get remote.interno.url >/dev/null 2>&1; then
+        git push interno main
+        _porco_arch_links
+        echo "✅ Push para interno concluído."
+    else
+        echo "⚠️ Sem remote 'interno'. No Mint costumas usar Gitea daí; no Arch o fluxo habitual é só: update-git"
+    fi
 }
 
 function update-git {
-    echo "🌐 Sincronizando com GitHub..."
+    echo "🌐 Arch: GitHub (remote github)..."
     cd "$BASE_DIR"
     git add -A
-    local MSG="${*:-Sync Geral $(date +'%d/%m/%Y %H:%M')}"
+    local MSG="${*:-Sync GitHub $(hostname) $(date +'%d/%m/%Y %H:%M')}"
     git commit -m "$MSG" >/dev/null 2>&1
     git push github main
-    echo "🏠 Chamando Sync Interno..."
-    update-interno "$MSG"
-    echo "✨ Sincronização Geral (GitHub + Gitea) concluída!"
+    _porco_arch_links
+    echo "✨ GitHub atualizado. (No Mint: update-interno + git/Gitea como preferires.)"
 }
 
 function update-geral {
