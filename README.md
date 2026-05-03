@@ -99,11 +99,6 @@ sudo loginctl enable-linger "$USER"
 2. Optional: place a Netscape-format **`youtube-cookies.txt`** in **`~/porco-music-bot/`** and restart the service.  
 3. Restart engine: `acordar-porco` or `systemctl --user restart porco.service`.
 
-### Git workflow
-
-- **Mint (root `funcoes.sh`):** `update-git` pushes to **`github`** and then calls **`update-interno`** (Gitea / `interno` remote, depending on how you configured remotes). Use whatever matches your `origin` / `interno` setup.
-- **Arch (`arch-edition/funcoes.sh`):** **`update-git`** only runs **`git push github main`** (no automatic Gitea push). **`update-interno`** runs **`git push interno main`** only if the **`interno`** remote exists.
-
 ### Repository layout (short)
 
 - **Mint:** `engine.py`, `play.py`, `funcoes.sh`, `instalar-porco.sh`, `porco.service` (root engine path).
@@ -206,11 +201,6 @@ sudo loginctl enable-linger "$USER"
 1. Atualizar yt-dlp: `sudo yt-dlp -U` (ou equivalente da distro).  
 2. Opcional: ficheiro Netscape **`youtube-cookies.txt`** em **`~/porco-music-bot/`** e reiniciar o serviço.  
 3. Reiniciar o motor: `acordar-porco` ou `systemctl --user restart porco.service`.
-
-### Git
-
-- **Mint (`funcoes.sh` na raiz):** o **`update-git`** faz push para **`github`** e de seguida chama **`update-interno`** (Gitea / remoto **`interno`**, conforme tiveres configurado).
-- **Arch (`arch-edition/funcoes.sh`):** o **`update-git`** faz só **`git push github main`**. O **`update-interno`** só faz **`git push interno main`** se existir o remoto **`interno`**.
 
 ### Estrutura do repositório (resumo)
 
