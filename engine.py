@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import fcntl
 import os
 import re
 import shutil
@@ -136,14 +137,25 @@ def build_mpv_command(play_url, vol, media_title, use_ytdl_hook):
 def play_next():
     if not os.path.exists(QUEUE_FILE):
         return False
-    with open(QUEUE_FILE, "r", encoding="utf-8") as f:
-        lines = [l.strip() for l in f.readlines() if l.strip()]
-    if not lines:
-        return False
 
-    current = lines[0]
-    with open(QUEUE_FILE, "w", encoding="utf-8") as f:
-        f.write("\n".join(lines[1:]) + "\n")
+    os.makedirs(BASE_DIR, exist_ok=True)
+    current = None
+    with open(QUEUE_FILE, "r+", encoding="utf-8") as f:
+        fcntl.flock(f, fcntl.LOCK_EX)
+        try:
+            raw = f.read()
+            lines = [ln.strip() for ln in raw.splitlines() if ln.strip()]
+            if not lines:
+                return False
+            current = lines[0]
+            rest = lines[1:]
+            f.seek(0)
+            f.truncate()
+            f.write("\n".join(rest) + ("\n" if rest else ""))
+            f.flush()
+            os.fsync(f.fileno())
+        finally:
+            fcntl.flock(f, fcntl.LOCK_UN)
 
     url = extract_stream_url(current)
     label = current.split("|", 1)[0].strip()

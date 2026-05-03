@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import fcntl
 import json
 import os
 import subprocess
@@ -46,13 +47,31 @@ def _send_socket_command(command):
 
 
 def clear_current_playback():
-    with open(QUEUE_FILE, "w", encoding="utf-8") as f:
-        f.write("")
-
     if os.path.exists(SOCKET_PATH):
         _send_socket_command(["stop"])
         _send_socket_command(["playlist-clear"])
-        time.sleep(0.5)
+        time.sleep(0.3)
+
+    os.makedirs(BASE_DIR, exist_ok=True)
+    with open(QUEUE_FILE, "a+", encoding="utf-8") as f:
+        fcntl.flock(f, fcntl.LOCK_EX)
+        try:
+            f.seek(0)
+            f.truncate()
+            f.flush()
+            os.fsync(f.fileno())
+        finally:
+            fcntl.flock(f, fcntl.LOCK_UN)
+
+
+def _nudge_porco_service():
+    """Garante que o motor volte a ler a fila (evita ficar preso ou sem processar)."""
+    subprocess.run(
+        ["systemctl", "--user", "restart", "porco.service"],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=False,
+    )
 
 
 def set_last_radio(station):
@@ -122,13 +141,27 @@ def tune_station(station):
     if not item["url"]:
         return False, "❌ Rádio sem URL válida.", None
 
-    clear_current_playback()
+    if os.path.exists(SOCKET_PATH):
+        _send_socket_command(["stop"])
+        _send_socket_command(["playlist-clear"])
+        time.sleep(0.3)
 
-    with open(QUEUE_FILE, "w", encoding="utf-8") as f:
-        f.write(f"📻 RADIO: {item['name']} | {item['url']}\n")
+    os.makedirs(BASE_DIR, exist_ok=True)
+    line = f"📻 RADIO: {item['name']} | {item['url']}\n"
+    with open(QUEUE_FILE, "a+", encoding="utf-8") as f:
+        fcntl.flock(f, fcntl.LOCK_EX)
+        try:
+            f.seek(0)
+            f.truncate()
+            f.write(line)
+            f.flush()
+            os.fsync(f.fileno())
+        finally:
+            fcntl.flock(f, fcntl.LOCK_UN)
 
     with open(RADIO_ATUAL_FILE, "w", encoding="utf-8") as f:
         f.write(item["name"] + "\n")
 
     set_last_radio(item)
+    _nudge_porco_service()
     return True, "ok", item
