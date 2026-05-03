@@ -35,4 +35,8 @@ chmod +x instalar-arch.sh
 ./instalar-arch.sh
 ```
 
-O serviço usa `arch-edition/engine.py` e `arch-edition/porco.service`. Comandos no shell vêm de `arch-edition/funcoes.sh` (não altera a edição Mint na raiz do repo).
+- **Obrigatório no Arch:** o `./instalar-arch.sh` instala `~/.config/systemd/user/porco.service` (motor = `arch-edition/engine.py`) e faz `enable --now`. Sem isso, `acordar-porco` / rádio / `favoritos` não têm motor a processar a fila.
+- Opcional: `sudo loginctl enable-linger "$USER"` para o serviço sobreviver ao logout.
+- O instalador acrescenta `source …/arch-edition/funcoes.sh` em `~/.bashrc`, `~/.zshrc` e `~/.profile` (cria o ficheiro se não existir).
+
+Comandos no shell vêm de `arch-edition/funcoes.sh` (a raiz do repo continua a ser a edição Mint).

@@ -14,14 +14,17 @@ sudo python -m pip install -U yt-dlp 2>/dev/null || sudo python3 -m pip install 
 
 mkdir -p "$BASE_DIR"
 
-echo "📝 source funcoes.sh (bash ou zsh)..."
-for rc in "$HOME/.bashrc" "$HOME/.zshrc"; do
-    [ -f "$rc" ] || continue
-    if ! grep -q "arch-edition/funcoes.sh" "$rc" 2>/dev/null; then
-        printf '\n# Porco Music Bot — Arch Edition\nsource %s/funcoes.sh\n' "$INSTALL_DIR" >> "$rc"
-        echo "✅ Incluído em $rc"
-    fi
-done
+echo "📝 source funcoes.sh (bash, zsh ou login shell)..."
+_add_funcoes_snippet() {
+    local rc="$1"
+    [ -f "$rc" ] || touch "$rc"
+    grep -q "arch-edition/funcoes.sh" "$rc" 2>/dev/null && return 0
+    printf '\n# Porco Music Bot — Arch Edition\nsource %s/funcoes.sh\n' "$INSTALL_DIR" >> "$rc"
+    echo "✅ Incluído em $rc"
+}
+_add_funcoes_snippet "$HOME/.bashrc"
+_add_funcoes_snippet "$HOME/.zshrc"
+_add_funcoes_snippet "$HOME/.profile"
 
 echo "⚙️ systemd --user (porco.service)..."
 mkdir -p "$HOME/.config/systemd/user"

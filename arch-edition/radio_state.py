@@ -65,7 +65,16 @@ def clear_current_playback():
 
 
 def _nudge_porco_service():
-    """Garante que o motor volte a ler a fila (evita ficar preso ou sem processar)."""
+    """Arch/Mint: reinicia o motor user systemd se a unit existir (instalar-arch / instalar-porco)."""
+    unit = os.path.expanduser("~/.config/systemd/user/porco.service")
+    if not os.path.isfile(unit):
+        return
+    subprocess.run(
+        ["systemctl", "--user", "daemon-reload"],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=False,
+    )
     subprocess.run(
         ["systemctl", "--user", "restart", "porco.service"],
         stdout=subprocess.DEVNULL,
