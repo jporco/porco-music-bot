@@ -40,5 +40,13 @@ sudo ln -sf "$INSTALL_DIR/volume.py" /usr/local/bin/volume
 
 chmod +x "$INSTALL_DIR"/*.py "$INSTALL_DIR"/*.sh 2>/dev/null
 
+echo ""
+echo "📡 Verificação:"
+if systemctl --user is-active --quiet porco.service 2>/dev/null; then
+    echo "  porco.service: ativo"
+else
+    echo "  porco.service: inativo — rode: systemctl --user status porco.service"
+fi
+
 echo "✨ Pronto. Abra um terminal novo ou: source ~/.bashrc (ou ~/.zshrc)"
-echo "👉 acordar-porco   |   porco-help"
+echo "👉 acordar-porco   |   porco-help   |   favoritos"
