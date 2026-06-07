@@ -89,7 +89,7 @@ sudo loginctl enable-linger "$USER"
 | `play-radio-ultimaradio` | Play the last selected station. |
 | `proxima` | Skip to the next queued item (mpv IPC). |
 | `fila` / `tocando` | Queue / now-playing style status (`tocando` mirrors `fila` on Arch). |
-| `volume …` | Sync volume file + mpv IPC; Mint edition also touches ALSA where configured. |
+| `volume …` / **`vmais`** / **`vmenos`** | Set level (0–100), or step up/down (`volume up` / `volume down`). Use **`vmais`**/**`vmenos`** instead of `+`/`-` (avoids clash with `cozmo +`/`-`). |
 | `wipe` | Stop playback, clear queue, restart engine. |
 | `porco-stop` | Stop user service, kill mpv, clear queue/socket markers. |
 
@@ -192,7 +192,7 @@ sudo loginctl enable-linger "$USER"
 | `play-radio-ultimaradio` | Tocar a última rádio escolhida. |
 | `proxima` | Saltar para o próximo item da fila (IPC do mpv). |
 | `fila` / `tocando` | Estado da fila / “agora a tocar” (`tocando` na prática chama `fila` na edição Arch). |
-| `volume …` | Sincroniza ficheiro de volume + IPC do mpv; na edição Mint também ajusta ALSA quando configurado. |
+| `volume …` / **`vmais`** / **`vmenos`** | Nível 0–100 ou subir/descer (`volume up` / `volume down`). Usa **`vmais`**/**`vmenos`** em vez de `+`/`-` (não conflita com `cozmo +`/`-`). |
 | `wipe` | Para tudo, limpa fila, reinicia o motor. |
 | `porco-stop` | Para o serviço user, mata o mpv, limpa fila/socket. |
 

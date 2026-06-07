@@ -145,7 +145,7 @@ function porco-help {
     echo -e "  \e[1;32mplay-radio-ultimaradio\e[0m | \e[1;32mtocando-radio\e[0m"
     echo -e ""
     echo -e "  \e[1;36mÁUDIO\e[0m"
-    echo -e "  \e[1;32mvolume [+ / - / 0-100]\e[0m"
+    echo -e "  \e[1;32mvolume [0-100]\e[0m | \e[1;32mvmais\e[0m | \e[1;32mvmenos\e[0m  (volume up/down)"
     echo -e ""
     echo -e "  \e[1;36mSINCRONIZAÇÃO\e[0m"
     echo -e "  \e[1;36mYOUTUBE (se nao sair som)\e[0m"
@@ -160,21 +160,48 @@ function porco-help {
 }
 
 
-function volume {
-    local VOL_FILE="$BASE_DIR/volume-atual.txt"
-    local VOL_ATUAL=$(cat "$VOL_FILE" 2>/dev/null); : ${VOL_ATUAL:=80}
+_porco_apply_volume() {
     local NOVO_VOL=$1
-    if [[ "$1" == "+" ]]; then NOVO_VOL=$((VOL_ATUAL + 5))
-    elif [[ "$1" == "-" ]]; then NOVO_VOL=$((VOL_ATUAL - 5))
-    elif [[ -z "$1" ]]; then echo "📢 Volume Sincronizado: $VOL_ATUAL%"; return 0; fi
-    [ "$NOVO_VOL" -gt 100 ] && NOVO_VOL=100; [ "$NOVO_VOL" -lt 0 ] && NOVO_VOL=0
+    [ "$NOVO_VOL" -gt 100 ] && NOVO_VOL=100
+    [ "$NOVO_VOL" -lt 0 ] && NOVO_VOL=0
     echo "$NOVO_VOL" > "$VOL_FILE"
-    if [ -S "$SOCKET_PATH" ]; then echo "{\"command\":[\"set_property\",\"volume\",$NOVO_VOL]}" | socat - "$SOCKET_PATH" >/dev/null 2>&1; fi
+    if [ -S "$SOCKET_PATH" ]; then
+        echo "{\"command\":[\"set_property\",\"volume\",$NOVO_VOL]}" | socat - "$SOCKET_PATH" >/dev/null 2>&1
+    fi
     if command -v pactl >/dev/null 2>&1; then
         pactl set-sink-volume @DEFAULT_SINK@ "${NOVO_VOL}%" >/dev/null 2>&1
     fi
-    echo "📢 Sincronizado: $NOVO_VOL% (Pipewire/Pulse + Bot)"
+    echo "📢 Volume: ${NOVO_VOL}% (Pipewire/Pulse + Bot)"
 }
+
+function volume {
+    local VOL_ATUAL
+    VOL_ATUAL=$(cat "$VOL_FILE" 2>/dev/null)
+    : "${VOL_ATUAL:=80}"
+    case "${1:-}" in
+        ''|status)
+            echo "📢 Volume: ${VOL_ATUAL}%"
+            return 0
+            ;;
+        up|mais|u)
+            _porco_apply_volume $((VOL_ATUAL + 5))
+            ;;
+        down|menos|d)
+            _porco_apply_volume $((VOL_ATUAL - 5))
+            ;;
+        *)
+            if [[ "$1" =~ ^[0-9]+$ ]]; then
+                _porco_apply_volume "$1"
+            else
+                echo "Uso: volume [0-100 | up | down]  — ou: vmais | vmenos"
+                return 1
+            fi
+            ;;
+    esac
+}
+
+function vmais { volume up; }
+function vmenos { volume down; }
 
 # --- MANUTENÇÃO ---
 function update-interno {
@@ -211,11 +238,11 @@ function update-geral {
 }
 
 function wipe {
-    echo "🧹 WIPE: Faxina total iniciada..."
-    pkill -9 -f engine.py >/dev/null 2>&1
+    echo "🧹 WIPE..."
+    systemctl --user stop porco.service >/dev/null 2>&1
     pkill -9 mpv >/dev/null 2>&1
     > "$QUEUE_FILE"
     rm -f "$SOCKET_PATH" "$RADIO_FILE"
-    acordar-porco
-    echo "🚀 Bot reiniciado e limpo!"
+    systemctl --user start porco.service >/dev/null 2>&1
+    echo "🚀 Fila limpa; motor reativado."
 }
