@@ -134,7 +134,7 @@ function porco-help {
     echo -e "  \e[1;32mplay-radio-ultimaradio\e[0m | \e[1;32mtocando-radio\e[0m"
     echo -e ""
     echo -e "  \e[1;36mÁUDIO\e[0m"
-    echo -e "  \e[1;32mvolume [0-100]\e[0m | \e[1;32mvmais\e[0m | \e[1;32mvmenos\e[0m  (volume up/down)"
+    echo -e "  \e[1;32mvolume [+ / - / 0-100]\e[0m  (Cozmo: \e[1;32mcozmo +\e[0m | \e[1;32mcozmo -\e[0m)"
     echo -e ""
     echo -e "  \e[1;36mSINCRONIZAÇÃO\e[0m"
     echo -e "  \e[1;36mYOUTUBE (se nao sair som)\e[0m"
@@ -170,25 +170,25 @@ function volume {
             echo "📢 Volume: ${VOL_ATUAL}%"
             return 0
             ;;
-        up|mais|u)
+        '+'|up|mais|u)
             _porco_apply_volume $((VOL_ATUAL + 5))
             ;;
-        down|menos|d)
+        '-'|down|menos|d)
             _porco_apply_volume $((VOL_ATUAL - 5))
             ;;
         *)
             if [[ "$1" =~ ^[0-9]+$ ]]; then
                 _porco_apply_volume "$1"
             else
-                echo "Uso: volume [0-100 | up | down]  — ou: vmais | vmenos"
+                echo "Uso: volume [0-100 | + | -]"
                 return 1
             fi
             ;;
     esac
 }
 
-function vmais { volume up; }
-function vmenos { volume down; }
+function vmais { volume +; }
+function vmenos { volume -; }
 
 # --- MANUTENÇÃO ---
 function update-interno {
