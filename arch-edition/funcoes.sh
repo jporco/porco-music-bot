@@ -239,10 +239,10 @@ function update-geral {
 
 function wipe {
     echo "🧹 WIPE..."
-    systemctl --user stop porco.service >/dev/null 2>&1
     pkill -9 mpv >/dev/null 2>&1
     > "$QUEUE_FILE"
     rm -f "$SOCKET_PATH" "$RADIO_FILE"
-    systemctl --user start porco.service >/dev/null 2>&1
-    echo "🚀 Fila limpa; motor reativado."
+    # --no-block: não prende o terminal à espera do systemd (stop/start síncrono demorava)
+    systemctl --user restart porco.service --no-block >/dev/null 2>&1
+    echo "🚀 Fila limpa; motor a reativar."
 }
