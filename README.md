@@ -1,5 +1,7 @@
 # Porco Music Bot
 
+[Arch-CCE deployment source and SSH commands](arch-cce/)
+
 Terminal-first music bot for **Linux Mint / Debian** (repo root) and **Arch Linux / CachyOS** (`arch-edition/`). It uses **Python**, **mpv**, **yt-dlp**, and **socat** (JSON IPC). YouTube playback prefers a **direct stream URL** from yt-dlp to reduce HTTP 429 issues.
 
 ---
